@@ -41,6 +41,12 @@ fn main () -> error::Result<()> {
 }
 
 ```
+## Installation
+
+```toml
+[dependencies]
+gdb-command = "0.1.0"
+```
 
 ## License
 

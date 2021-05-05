@@ -3,7 +3,11 @@ name = "gdb-command"
 version = "0.1.0"
 authors = ["fedotoff <fedotoff@ispras.ru>"]
 edition = "2018"
+description = "Wrapper for gdb in batch mode."
+readme = "README.md"
+keywords = [ "gdb", "backtrace","gdbwrapper","coredump"]
+repository = "https://github.com/xcoldhandsx/gdb-command.git"
+homepage = "https://github.com/xcoldhandsx/gdb-command.git"
+license = "MIT"
+exclude = ["/tests"]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
