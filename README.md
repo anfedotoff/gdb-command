@@ -1,5 +1,7 @@
 # gdb-command
 
+[![CI](https://github.com/xcoldhandsx/gdb-command/actions/workflows/main.yml/badge.svg?branch=master)](https://github.com/xcoldhandsx/gdb-command/actions/workflows/main.yml)
+
 `gdb-command` is a library providing API for manipulating gdb in batch mode. It supports:
 
 * Execution of target program (Local type).
