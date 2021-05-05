@@ -31,7 +31,8 @@
 //!
 //!     thread::sleep(Duration::from_millis(10));
 //!
-//!     let result = GdbCommand::new(&ExecType::Remote(&child.id().to_string())).bt()?;
+//!     // To run this test: echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope
+//!     let result = GdbCommand::new(&ExecType::Remote(&child.id().to_string())).bt();
 //!     child.kill().unwrap();
 //!
 //!     Ok(())
