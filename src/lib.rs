@@ -16,15 +16,15 @@
 //!
 //! fn main () -> error::Result<()> {
 //!     // Get stacktrace from running program (stopped at crash)
-//!     let result = GdbCommand::new(&ExecType::Local(&["tests/bins/test_abort", "A"])).bt()?;
+//!     let result = GdbCommand::new(&ExecType::Local(&["tests/bins/test_abort", "A"])).bt().run()?;
 //!
 //!     // Get stacktrace from core
 //!     let result = GdbCommand::new(
 //!             &ExecType::Core {target: "tests/bins/test_canary",
 //!                 core: "tests/bins/core.test_canary"})
-//!         .bt()?;
+//!         .bt().run()?;
 //!
-//!     // Get stacktrace from remote attach to process
+//!     // Get info from remote attach to process
 //!     let mut child = Command::new("tests/bins/test_callstack_remote")
 //!        .spawn()
 //!        .expect("failed to execute child");
@@ -32,7 +32,11 @@
 //!     thread::sleep(Duration::from_millis(10));
 //!
 //!     // To run this test: echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope
-//!     let result = GdbCommand::new(&ExecType::Remote(&child.id().to_string())).bt();
+//!     let result = GdbCommand::new(&ExecType::Remote(&child.id().to_string()))
+//!         .bt()
+//!         .regs()
+//!         .disassembly()
+//!         .run();
 //!     child.kill().unwrap();
 //!
 //!     Ok(())
@@ -42,6 +46,8 @@
 
 use std::path::Path;
 use std::process::Command;
+
+use regex::Regex;
 
 pub mod error;
 /// Type of `gdb` execution: Remote attach to process, local run with args, core.
@@ -82,19 +88,23 @@ impl<'a> GdbCommand<'a> {
     /// * `cmd` - gdb command parameter (-ex).
     pub fn ex(&mut self, cmd: &'a str) -> &'a mut GdbCommand {
         self.args.push("-ex");
+        self.args.push("p \"gdb-command\"");
+        self.args.push("-ex");
         self.args.push(cmd);
         self
     }
 
     /// Run gdb with provided commands and return raw stdout.
-    pub fn run(&self) -> error::Result<Vec<u8>> {
+    pub fn raw(&self) -> error::Result<Vec<u8>> {
         let mut gdb = Command::new("gdb");
         let mut gdb_args = Vec::new();
 
         // Set quiet mode and confirm off
-        gdb_args.push("-q");
+        gdb_args.push("--batch");
         gdb_args.push("-ex");
-        gdb_args.push("set confirm off");
+        gdb_args.push("set backtrace limit 2000");
+        gdb_args.push("-ex");
+        gdb_args.push("set disassembly-flavor intel");
 
         // Add parameters according to execution
         match &self.exec_type {
@@ -131,10 +141,6 @@ impl<'a> GdbCommand<'a> {
             }
         }
 
-        // Quit
-        gdb_args.push("-ex");
-        gdb_args.push("q");
-
         // Run gdb and get output
         let output = gdb.args(&gdb_args).output()?;
         if output.status.success() {
@@ -144,47 +150,34 @@ impl<'a> GdbCommand<'a> {
         }
     }
 
-    /// Get backtrace from gdb execution as vector of strings.
-    pub fn bt(&'a mut self) -> error::Result<Vec<String>> {
-        let output = self
-            // Start stacktrace guard
-            .ex("p \"Start stacktrace\"")
-            .ex("bt")
-            // End stacktrace guard
-            .ex("p \"End stacktrace\"")
-            .run()?;
+    /// Add command to get backtrace (-ex bt)
+    pub fn bt(&mut self) -> &'a mut GdbCommand {
+        self.ex("bt")
+    }
 
-        // Get output as string
-        let output = String::from_utf8(output).unwrap();
+    /// Add command to get disassembly (-ex 'x/16i $pc')
+    pub fn disassembly(&mut self) -> &'a mut GdbCommand {
+        self.ex("x/16i $pc")
+    }
 
-        // Find stacktrace guards
-        if let Some(start) = output.find("Start stacktrace") {
-            if let Some(end) = output.find("End stacktrace") {
-                // Cut stacktrace. Start is the position of first '#' char
-                // after "Start stacktrace". End is the position of first
-                // '$' before "End stacktrace."
-                let slice = output.get(start..end).unwrap();
-                let end = start + slice.rfind("$").expect("Coudn't find $ symbol.");
-                if let Some(offset) = slice.find("#") {
-                    let start = start + offset;
-                    Ok(output[start..end]
-                        .split('#') // Split by entries
-                        .filter(|s| !s.is_empty())
-                        .map(|s| {
-                            // Do some format stuff for each entry
-                            let mut bt = s.replace("\n", " ").trim().to_string();
-                            bt.insert(0, '#');
-                            bt
-                        })
-                        .collect())
-                } else {
-                    Err(error::Error::ParseOutput(String::from("No stacktrace")))
-                }
-            } else {
-                Err(error::Error::ParseOutput(String::from("End stacktrace")))
-            }
-        } else {
-            Err(error::Error::ParseOutput(String::from("Start stacktrace")))
-        }
+    /// Add command to get registers (-ex 'i r')
+    pub fn regs(&mut self) -> &'a mut GdbCommand {
+        self.ex("i r")
+    }
+
+    /// Execute gdb and get result for each command.
+    /// # Return value.
+    ///
+    /// The return value is a vector of strings for each command executed.
+    pub fn run(&self) -> error::Result<Vec<String>> {
+        let stdout = self.raw()?;
+        let output = String::from_utf8(stdout).unwrap();
+        let re = Regex::new(r#"(?m)^\$\d+\s*=\s*"gdb-command"$"#).unwrap();
+        let mut result = re
+            .split(&output)
+            .map(|s| s.to_string())
+            .collect::<Vec<String>>();
+        result.remove(0);
+        Ok(result)
     }
 }

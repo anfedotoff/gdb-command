@@ -11,3 +11,5 @@ homepage = "https://github.com/xcoldhandsx/gdb-command.git"
 license = "MIT"
 exclude = ["/tests"]
 
+[dependencies]
+regex = "1.5.4"

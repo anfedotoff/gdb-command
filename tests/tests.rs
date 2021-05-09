@@ -20,13 +20,12 @@ fn test_local_canary() {
     let a = std::iter::repeat("A").take(200).collect::<String>();
     args.push(bin.as_str());
     args.push(a.as_str());
-    let result = GdbCommand::new(&ExecType::Local(&args)).bt();
+    let result = GdbCommand::new(&ExecType::Local(&args)).bt().run();
     if result.is_err() {
         assert!(false, "{}", result.err().unwrap());
     }
     let result = result.unwrap();
-    assert_eq!(result.len(), 6);
-    assert_eq!(result[4].contains("__stack_chk_fail"), true);
+    assert_eq!(result[0].contains("__stack_chk_fail"), true);
 }
 
 #[test]
@@ -36,13 +35,12 @@ fn test_local_safe_func() {
     let a = std::iter::repeat("A").take(200).collect::<String>();
     args.push(bin.as_str());
     args.push(a.as_str());
-    let result = GdbCommand::new(&ExecType::Local(&args)).bt();
+    let result = GdbCommand::new(&ExecType::Local(&args)).bt().run();
     if result.is_err() {
         assert!(false, "{}", result.err().unwrap());
     }
     let result = result.unwrap();
-    assert_eq!(result.len(), 8);
-    assert_eq!(result[5].contains("__strcpy_chk"), true);
+    assert_eq!(result[0].contains("__strcpy_chk"), true);
 }
 
 #[test]
@@ -54,13 +52,13 @@ fn test_core_canary() {
         target: &bin,
         core: &core,
     })
-    .bt();
+    .bt()
+    .run();
     if result.is_err() {
         assert!(false, "{}", result.err().unwrap());
     }
     let result = result.unwrap();
-    assert_eq!(result.len(), 6);
-    assert_eq!(result[4].contains("__stack_chk_fail"), true);
+    assert_eq!(result[0].contains("__stack_chk_fail"), true);
 }
 
 #[test] // To run this test: If Ubuntu 20.04 just remove ignore. Other systems: recollect the core.
@@ -72,13 +70,13 @@ fn test_core_safe_func() {
         target: &bin,
         core: &core,
     })
-    .bt();
+    .bt()
+    .run();
     if result.is_err() {
         assert!(false, "{}", result.err().unwrap());
     }
     let result = result.unwrap();
-    assert_eq!(result.len(), 8);
-    assert_eq!(result[5].contains("__strcpy_chk"), true);
+    assert_eq!(result[0].contains("__strcpy_chk"), true);
 }
 
 #[test] // To run this test: echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope
@@ -93,16 +91,18 @@ fn test_remote_unwind() {
         .expect("failed to execute child");
     thread::sleep(Duration::from_millis(10));
 
-    let result = GdbCommand::new(&ExecType::Remote(&child.id().to_string())).bt();
+    let result = GdbCommand::new(&ExecType::Remote(&child.id().to_string()))
+        .bt()
+        .run();
     if result.is_err() {
         assert!(false, "{}", result.err().unwrap());
     }
 
     let result = result.unwrap();
-    assert_eq!(result.len(), 5);
-    assert_eq!(result[1].contains("third"), true);
-    assert_eq!(result[2].contains("second"), true);
-    assert_eq!(result[3].contains("first"), true);
-    assert_eq!(result[4].contains("main"), true);
+    assert_eq!(result[0].contains("third"), true);
+    assert_eq!(result[0].contains("second"), true);
+    assert_eq!(result[0].contains("first"), true);
+    assert_eq!(result[0].contains("main"), true);
+
     child.kill().unwrap();
 }

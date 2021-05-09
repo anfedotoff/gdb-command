@@ -19,15 +19,15 @@ use gdb_command::*;
 
 fn main () -> error::Result<()> {
     // Get stacktrace from running program (stopped at crash)
-    let result = GdbCommand::new(&ExecType::Local(&["tests/bins/test_abort", "A"])).bt()?;
+    let result = GdbCommand::new(&ExecType::Local(&["tests/bins/test_abort", "A"])).bt().run()?;
 
     // Get stacktrace from core
     let result = GdbCommand::new(
             &ExecType::Core {target: "tests/bins/test_canary",
                 core: "tests/bins/core.test_canary"})
-        .bt()?;
+        .bt().run()?;
 
-    // Get stacktrace from remote attach to process
+    // Get info from remote attach to process
     let mut child = Command::new("tests/bins/test_callstack_remote")
        .spawn()
        .expect("failed to execute child");
@@ -35,7 +35,11 @@ fn main () -> error::Result<()> {
     thread::sleep(Duration::from_millis(10));
 
     // To run this test: echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope
-    let result = GdbCommand::new(&ExecType::Remote(&child.id().to_string())).bt();
+    let result = GdbCommand::new(&ExecType::Remote(&child.id().to_string()))
+        .bt()
+        .regs()
+        .disassembly()
+        .run();
     child.kill().unwrap();
 
     Ok(())
