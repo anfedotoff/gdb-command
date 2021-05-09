@@ -165,6 +165,11 @@ impl<'a> GdbCommand<'a> {
         self.ex("i r")
     }
 
+    /// Add command to get mappings (-ex 'info proc mappings')
+    pub fn mappings(&mut self) -> &'a mut GdbCommand {
+        self.ex("info proc mappings")
+    }
+
     /// Execute gdb and get result for each command.
     /// # Return value.
     ///
