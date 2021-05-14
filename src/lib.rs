@@ -180,7 +180,7 @@ impl<'a> GdbCommand<'a> {
         let re = Regex::new(r#"(?m)^\$\d+\s*=\s*"gdb-command"$"#).unwrap();
         let mut result = re
             .split(&output)
-            .map(|s| s.to_string())
+            .map(|s| s.trim().to_string())
             .collect::<Vec<String>>();
         result.remove(0);
         Ok(result)
