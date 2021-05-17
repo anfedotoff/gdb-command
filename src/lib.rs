@@ -170,6 +170,21 @@ impl<'a> GdbCommand<'a> {
         self.ex("info proc mappings")
     }
 
+    /// Add command to get cmd line.
+    pub fn cmdline(&mut self) -> &'a mut GdbCommand {
+        self.ex("info proc cmdline")
+    }
+
+    /// Add command to get environment variables
+    pub fn env(&mut self) -> &'a mut GdbCommand {
+        self.ex("show environment")
+    }
+
+    /// Add command to get process status
+    pub fn status(&mut self) -> &'a mut GdbCommand {
+        self.ex("info proc status")
+    }
+
     /// Execute gdb and get result for each command.
     /// # Return value.
     ///
