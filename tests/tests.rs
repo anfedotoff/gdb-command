@@ -44,6 +44,57 @@ fn test_local_safe_func() {
 }
 
 #[test]
+fn test_struct_mapped_files() {
+    let bin = abs_path("tests/bins/test_abort");
+    let result = GdbCommand::new(&ExecType::Local(&[&bin, "A"])).mappings().run();
+    if result.is_err() {
+        assert!(false, "{}", result.err().unwrap());
+    }
+    let result = result.unwrap();
+    let prmap = MappedFiles::from_gdb(result[0].clone());
+
+    assert_eq!(result[0].contains(format!("0x{:x}", prmap.files[prmap.files.len() - 1].base_address).as_str()), true);
+    assert_eq!(result[0].contains(format!("0x{:x}", prmap.files[prmap.files.len() - 1].end).as_str()), true);
+    assert_eq!(result[0].contains(format!("0x{:x}", prmap.files[prmap.files.len() - 1].file_ofs).as_str()), true);
+    if prmap.files[prmap.files.len() - 1].name != "No_file" {
+        assert_eq!(result[0].contains(&prmap.files[prmap.files.len() - 1].name.clone()), true);
+    }
+
+    // Testing method 'find'
+    let ffile = prmap.find(prmap.files[prmap.files.len() - 1].base_address + 2);
+    if let Some(x) = ffile {
+        assert_eq!(x.base_address, prmap.files[prmap.files.len() - 1].base_address);
+        assert_eq!(x.file_ofs, prmap.files[prmap.files.len() - 1].file_ofs);
+    } else {
+        assert!(false, "File not found!");
+    }
+}
+
+#[test]
+fn test_gettrace_and_stacktraceentry_struct() {
+    let bin = abs_path("tests/bins/test_abort");
+    let result = GdbCommand::new(&ExecType::Local(&[&bin, "A"])).bt().mappings().run();
+    if result.is_err() {
+        assert!(false, "{}", result.err().unwrap());
+    }
+    let result = result.unwrap();
+    let mut sttr = gettrace(result[0].clone());
+    assert_eq!(result[0].contains(format!("0x0000{:x}", sttr[sttr.len() - 1].address).as_str()), true);
+    assert_eq!(result[0].contains(sttr[sttr.len() - 1].debug.as_str()), true);
+
+    // Testing method 'upmodinfo'
+    let length = sttr.len() - 1;
+    sttr[length].upmodinfo(&File{base_address: 12, end: 34, file_ofs: 56, name: "Itan".to_string()});
+
+    if let ModuleInfo::File(file) = &sttr[sttr.len() - 1].module {
+        assert_eq!(file.end, 34);
+        assert_eq!(file.name, "Itan".to_string());
+    } else {
+        assert!(false, "No file...");
+    }
+}
+
+#[test]
 #[ignore] // To run this test: If Ubuntu 20.04 just remove ignore. Other systems: recollect the core.
 fn test_core_canary() {
     let bin = abs_path("tests/bins/test_canary");
