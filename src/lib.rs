@@ -254,7 +254,7 @@ impl StacktraceEntry {
         self.module = ModuleInfo::File(file.clone());
     }
 
-    /// Method compute the offset between the function and the start of the file
+    /// Method computes the offset between the function and the start of the file
     pub fn getoffset(&self) -> u64 {
         match &self.module {
             ModuleInfo::Name(name) => {
