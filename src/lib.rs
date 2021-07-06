@@ -122,8 +122,11 @@ impl MappedFiles {
     /// # Arguments
     ///
     /// * 'mapping' - String of mapped files
-    pub fn from_gdb(mapping: String) -> MappedFiles {
+    pub fn from_gdb(mapping: String) -> error::Result<MappedFiles> {
         let mut hlp = mapping.split('\n').map(|s| s.trim().to_string()).collect::<Vec<String>>();
+        if hlp.len() < 6 {
+            return Err(error::Error::MF(format!("cannot parse this string: {}", mapping).to_string()));
+        }
         hlp.drain(0..5);
         hlp.remove(hlp.len() - 1);
         let mut some = Vec::<File>::new();
@@ -131,6 +134,9 @@ impl MappedFiles {
         for x in hlp.iter() {
             let mut filevec = x.split(' ').map(|s| s.trim().to_string()).collect::<Vec<String>>();
             filevec.retain(|x| x != "");
+            if filevec.len() < 4 {
+                return Err(error::Error::MF(format!("cannot parse this string: {}", mapping).to_string()));
+            }
             let hlp = File {
                 base_address: u64::from_str_radix(filevec[0].clone().drain(2..).collect::<String>().as_str(), 16).unwrap(),
                 end: u64::from_str_radix(filevec[1].clone().drain(2..).collect::<String>().as_str(), 16).unwrap(),
@@ -144,7 +150,7 @@ impl MappedFiles {
             some.push(hlp.clone());
         }
 
-        MappedFiles{fcount: some.len() as i32, page_size: 4096, files: some}
+        Ok(MappedFiles{fcount: some.len() as i32, page_size: 4096, files: some})
     }
 
     /// Method determines which file contains the address
@@ -152,7 +158,7 @@ impl MappedFiles {
     /// # Arguments
     ///
     /// * 'addr' - given address
-    pub fn find(&self, addr: u64) -> Option<File> {
+    pub fn find(&self, addr: u64) -> error::Result<File> {
         let mut f = 0;
         for y in self.files.iter() {
             if (y.base_address < addr as u64) && (y.end > addr as u64) {
@@ -161,9 +167,9 @@ impl MappedFiles {
             f += 1;
         }
         if f < self.files.len() {
-            return Some(self.files[f].clone());
+            return Ok(self.files[f].clone());
         } else {
-            return None;
+            return Err(error::Error::MF(format!("Cannot find file with address {}", addr).to_string()));
         }
     }
 }
@@ -206,13 +212,18 @@ impl fmt::Display for StacktraceEntry {
 /// # Return value
 ///
 /// The return value is a vector of  'StacktraceEntry' structs
-pub fn gettrace(trace: String) -> Vec<StacktraceEntry> {
+pub fn gettrace(trace: String) -> error::Result<Vec<StacktraceEntry>> {
     let mut some = Vec::<StacktraceEntry>::new();
     let mut hlp = trace.split('\n').map(|s| s.trim().to_string()).collect::<Vec<String>>();
+    if hlp.len() < 2 {
+        return Err(error::Error::ST(format!("cannot get stack trace from this string: {}", trace).to_string()));
+    }
     hlp.remove(0);
     hlp.remove(hlp.len() - 1);
-    hlp.iter().for_each(|x| some.push(StacktraceEntry::new(x.clone())));
-    some
+    for x in hlp.iter() {
+         some.push(StacktraceEntry::new(x.clone())?);
+    }
+    Ok(some)
 }
 
 impl StacktraceEntry {
@@ -221,7 +232,7 @@ impl StacktraceEntry {
     /// # Arguments
     ///
     /// * 'trace' - one line of stacktrace from gdb
-    pub fn new(trace: String) -> StacktraceEntry {
+    pub fn new(trace: String) -> error::Result<StacktraceEntry> {
         let mut vectrace = trace.split(' ').map(|s| s.trim().to_string()).collect::<Vec<String>>();
         vectrace.retain(|trace| trace != "");
         let normname: String;
@@ -236,13 +247,19 @@ impl StacktraceEntry {
         }
 
         if debugg == "()" {
+            if first > vectrace.len() {
+                return Err(error::Error::ST(format!("cannot parse this line: {}", trace).to_string()));
+            }
             normname = vectrace.clone().drain(first..vectrace.len()).collect::<String>();
             debugg = "No_file".to_string();
         } else {
+            if first > vectrace.len() - 2 {
+                return Err(error::Error::ST(format!("cannot parse this line: {}", trace).to_string()));
+            }
             normname = vectrace.clone().drain(first..vectrace.len() - 2).collect::<String>();
         }
 
-        StacktraceEntry{address: addr, module: ModuleInfo::Name(normname), debug: debugg}
+        Ok(StacktraceEntry{address: addr, module: ModuleInfo::Name(normname), debug: debugg})
     }
 
     /// Method attaches 'File" struct to module information

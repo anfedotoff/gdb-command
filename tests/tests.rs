@@ -51,7 +51,12 @@ fn test_struct_mapped_files() {
         assert!(false, "{}", result.err().unwrap());
     }
     let result = result.unwrap();
+ 
     let prmap = MappedFiles::from_gdb(result[0].clone());
+    if prmap.is_err() {
+        assert!(false, "{}", prmap.err().unwrap());
+    }
+    let prmap = prmap.unwrap();
 
     assert_eq!(result[0].contains(format!("0x{:x}", prmap.files[prmap.files.len() - 1].base_address).as_str()), true);
     assert_eq!(result[0].contains(format!("0x{:x}", prmap.files[prmap.files.len() - 1].end).as_str()), true);
@@ -62,24 +67,31 @@ fn test_struct_mapped_files() {
 
     // Testing method 'find'
     let ffile = prmap.find(prmap.files[prmap.files.len() - 1].base_address + 2);
-    if let Some(x) = ffile {
-        assert_eq!(x.base_address, prmap.files[prmap.files.len() - 1].base_address);
-        assert_eq!(x.file_ofs, prmap.files[prmap.files.len() - 1].file_ofs);
-    } else {
-        assert!(false, "File not found!");
+    if ffile.is_err() {
+        assert!(false, "{}", ffile.err().unwrap());
     }
+    let ffile = ffile.unwrap();
+ 
+    assert_eq!(ffile.base_address, prmap.files[prmap.files.len() - 1].base_address);
+    assert_eq!(ffile.file_ofs, prmap.files[prmap.files.len() - 1].file_ofs);
 }
 
 #[test]
 fn test_gettrace_and_stacktraceentry_struct() {
-    let bin = abs_path("tests/bins/test_abort");
+    let bin = abs_path("tests/bins/test_abort32");
     let result = GdbCommand::new(&ExecType::Local(&[&bin, "A"])).bt().mappings().run();
     if result.is_err() {
         assert!(false, "{}", result.err().unwrap());
     }
     let result = result.unwrap();
-    let mut sttr = gettrace(result[0].clone());
-    assert_eq!(result[0].contains(format!("0x0000{:x}", sttr[sttr.len() - 1].address).as_str()), true);
+
+    let sttr = gettrace(result[0].clone());
+    if sttr.is_err() {
+        assert!(false, "{}", sttr.err().unwrap());
+    }
+    let mut sttr = sttr.unwrap();
+ 
+    assert_eq!(result[0].contains(format!("{:x}", sttr[sttr.len() - 1].address).as_str()), true);
     assert_eq!(result[0].contains(sttr[sttr.len() - 1].debug.as_str()), true);
 
     // Testing method 'upmodinfo'
