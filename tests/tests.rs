@@ -46,23 +46,39 @@ fn test_local_safe_func() {
 #[test]
 fn test_struct_mapped_files() {
     let bin = abs_path("tests/bins/test_abort");
-    let result = GdbCommand::new(&ExecType::Local(&[&bin, "A"])).mappings().run();
+    let result = GdbCommand::new(&ExecType::Local(&[&bin, "A"]))
+        .mappings()
+        .run();
     if result.is_err() {
         assert!(false, "{}", result.err().unwrap());
     }
     let result = result.unwrap();
- 
-    let prmap = MappedFiles::from_gdb(result[0].clone());
+
+    let prmap = MappedFiles::from_gdb(&result[0]);
     if prmap.is_err() {
         assert!(false, "{}", prmap.err().unwrap());
     }
     let prmap = prmap.unwrap();
 
-    assert_eq!(result[0].contains(format!("0x{:x}", prmap.files[prmap.files.len() - 1].base_address).as_str()), true);
-    assert_eq!(result[0].contains(format!("0x{:x}", prmap.files[prmap.files.len() - 1].end).as_str()), true);
-    assert_eq!(result[0].contains(format!("0x{:x}", prmap.files[prmap.files.len() - 1].file_ofs).as_str()), true);
+    assert_eq!(
+        result[0]
+            .contains(format!("0x{:x}", prmap.files[prmap.files.len() - 1].base_address).as_str()),
+        true
+    );
+    assert_eq!(
+        result[0].contains(format!("0x{:x}", prmap.files[prmap.files.len() - 1].end).as_str()),
+        true
+    );
+    assert_eq!(
+        result[0]
+            .contains(format!("0x{:x}", prmap.files[prmap.files.len() - 1].file_offset).as_str()),
+        true
+    );
     if prmap.files[prmap.files.len() - 1].name != "No_file" {
-        assert_eq!(result[0].contains(&prmap.files[prmap.files.len() - 1].name.clone()), true);
+        assert_eq!(
+            result[0].contains(&prmap.files[prmap.files.len() - 1].name.clone()),
+            true
+        );
     }
 
     // Testing method 'find'
@@ -71,36 +87,66 @@ fn test_struct_mapped_files() {
         assert!(false, "{}", ffile.err().unwrap());
     }
     let ffile = ffile.unwrap();
- 
-    assert_eq!(ffile.base_address, prmap.files[prmap.files.len() - 1].base_address);
-    assert_eq!(ffile.file_ofs, prmap.files[prmap.files.len() - 1].file_ofs);
+
+    assert_eq!(
+        ffile.base_address,
+        prmap.files[prmap.files.len() - 1].base_address
+    );
+    assert_eq!(
+        ffile.file_offset,
+        prmap.files[prmap.files.len() - 1].file_offset
+    );
 }
 
 #[test]
-fn test_gettrace_and_stacktraceentry_struct() {
+fn test_trace_funcs_and_stacktraceentry_struct() {
     let bin = abs_path("tests/bins/test_abort32");
-    let result = GdbCommand::new(&ExecType::Local(&[&bin, "A"])).bt().mappings().run();
+    let result = GdbCommand::new(&ExecType::Local(&[&bin, "A"]))
+        .bt()
+        .mappings()
+        .run();
     if result.is_err() {
         assert!(false, "{}", result.err().unwrap());
     }
     let result = result.unwrap();
 
-    let sttr = gettrace(result[0].clone());
+    let sttr = trace_from_gdb(&result[0]);
     if sttr.is_err() {
         assert!(false, "{}", sttr.err().unwrap());
     }
     let mut sttr = sttr.unwrap();
- 
-    assert_eq!(result[0].contains(format!("{:x}", sttr[sttr.len() - 1].address).as_str()), true);
-    assert_eq!(result[0].contains(sttr[sttr.len() - 1].debug.as_str()), true);
 
-    // Testing method 'upmodinfo'
-    let length = sttr.len() - 1;
-    sttr[length].upmodinfo(&File{base_address: 12, end: 34, file_ofs: 56, name: "Itan".to_string()});
+    assert_eq!(
+        result[0].contains(format!("{:x}", sttr[sttr.len() - 1].address).as_str()),
+        true
+    );
+    assert_eq!(
+        result[0].contains(sttr[sttr.len() - 1].debug.as_str()),
+        true
+    );
+
+    // Testing method 'up_stacktrace_info'
+
+    let prmap = MappedFiles::from_gdb(&result[1]).unwrap();
+    up_stacktrace_info(&mut sttr, &prmap);
 
     if let ModuleInfo::File(file) = &sttr[sttr.len() - 1].module {
-        assert_eq!(file.end, 34);
-        assert_eq!(file.name, "Itan".to_string());
+        assert_eq!(
+            result[1].contains(&format!("{:x}", file.base_address).to_string()),
+            true
+        );
+        assert_eq!(
+            result[1].contains(&format!("{:x}", file.end).to_string()),
+            true
+        );
+        assert_eq!(
+            result[1].contains(&format!("{:x}", file.file_offset).to_string()),
+            true
+        );
+        assert_eq!(
+            result[1].contains(&format!("{}", file.name).to_string()),
+            true
+        );
     } else {
         assert!(false, "No file...");
     }

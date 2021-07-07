@@ -44,10 +44,10 @@
 //!
 //! ```
 
+use regex::Regex;
+use std::fmt;
 use std::path::Path;
 use std::process::Command;
-use std::fmt;
-use regex::Regex;
 
 /// `File` struct represents unit (segment) in proccess address space.
 #[derive(Clone, Default, Debug)]
@@ -55,7 +55,7 @@ pub struct File {
     pub base_address: u64,
     pub end: u64,
     /// Offset in pages.
-    pub file_ofs: u64,
+    pub file_offset: u64,
     /// Full path to binary module.
     pub name: String,
 }
@@ -77,7 +77,7 @@ impl File {
         File {
             base_address: base,
             end: end,
-            file_ofs: offset,
+            file_offset: offset,
             name: String::from(fname),
         }
     }
@@ -88,7 +88,7 @@ impl fmt::Display for File {
         write!(
             f,
             "File {{ Base: 0x{:x}, End: 0x{:x}, offset: 0x{:x}, path: {} }}",
-            self.base_address, self.end, self.file_ofs, self.name
+            self.base_address, self.end, self.file_offset, self.name
         )
     }
 }
@@ -122,35 +122,60 @@ impl MappedFiles {
     /// # Arguments
     ///
     /// * 'mapping' - String of mapped files
-    pub fn from_gdb(mapping: String) -> error::Result<MappedFiles> {
-        let mut hlp = mapping.split('\n').map(|s| s.trim().to_string()).collect::<Vec<String>>();
+    pub fn from_gdb(mapping: &String) -> error::Result<MappedFiles> {
+        let mut hlp = mapping
+            .split('\n')
+            .map(|s| s.trim().to_string())
+            .collect::<Vec<String>>();
         if hlp.len() < 6 {
-            return Err(error::Error::MF(format!("cannot parse this string: {}", mapping).to_string()));
+            return Err(error::Error::MF(
+                format!("cannot parse this string: {}", mapping).to_string(),
+            ));
         }
         hlp.drain(0..5);
         hlp.remove(hlp.len() - 1);
         let mut some = Vec::<File>::new();
 
         for x in hlp.iter() {
-            let mut filevec = x.split(' ').map(|s| s.trim().to_string()).collect::<Vec<String>>();
+            let mut filevec = x
+                .split(' ')
+                .map(|s| s.trim().to_string())
+                .collect::<Vec<String>>();
             filevec.retain(|x| x != "");
             if filevec.len() < 4 {
-                return Err(error::Error::MF(format!("cannot parse this string: {}", mapping).to_string()));
+                return Err(error::Error::MF(
+                    format!("cannot parse this string: {}", mapping).to_string(),
+                ));
             }
             let hlp = File {
-                base_address: u64::from_str_radix(filevec[0].clone().drain(2..).collect::<String>().as_str(), 16).unwrap(),
-                end: u64::from_str_radix(filevec[1].clone().drain(2..).collect::<String>().as_str(), 16).unwrap(),
-                //size: u64::from_str_radix(filevec[2].clone().drain(2..).collect::<String>().as_str(), 16).unwrap(),
-                file_ofs: u64::from_str_radix(filevec[3].clone().drain(2..).collect::<String>().as_str(), 16).unwrap(),
+                base_address: u64::from_str_radix(
+                    filevec[0].clone().drain(2..).collect::<String>().as_str(),
+                    16,
+                )
+                .unwrap(),
+                end: u64::from_str_radix(
+                    filevec[1].clone().drain(2..).collect::<String>().as_str(),
+                    16,
+                )
+                .unwrap(),
+                file_offset: u64::from_str_radix(
+                    filevec[3].clone().drain(2..).collect::<String>().as_str(),
+                    16,
+                )
+                .unwrap(),
                 name: match filevec.len() {
-                        0..=4 => "No_file".to_string(),
-                        _ => filevec[4].clone().to_string(),
+                    0..=4 => "No_file".to_string(),
+                    _ => filevec[4].clone().to_string(),
                 },
             };
             some.push(hlp.clone());
         }
 
-        Ok(MappedFiles{fcount: some.len() as i32, page_size: 4096, files: some})
+        Ok(MappedFiles {
+            fcount: some.len() as i32,
+            page_size: 4096,
+            files: some,
+        })
     }
 
     /// Method determines which file contains the address
@@ -159,32 +184,38 @@ impl MappedFiles {
     ///
     /// * 'addr' - given address
     pub fn find(&self, addr: u64) -> error::Result<File> {
-        let mut f = 0;
-        for y in self.files.iter() {
-            if (y.base_address < addr as u64) && (y.end > addr as u64) {
-                break;
-            }
-            f += 1;
-        }
-        if f < self.files.len() {
-            return Ok(self.files[f].clone());
+        let result = self
+            .files
+            .iter()
+            .find(|&x| (x.base_address < addr as u64) && (x.end > addr as u64));
+
+        if let Some(x) = result {
+            return Ok(x.clone());
         } else {
-            return Err(error::Error::MF(format!("Cannot find file with address {}", addr).to_string()));
+            return Err(error::Error::MF(
+                format!("Cannot find file with address {}", addr).to_string(),
+            ));
         }
     }
 }
 
+/// 'ModuleInfo' enum represents the name of the module or contains information about the module.
 #[derive(Clone)]
 pub enum ModuleInfo {
+    /// Module name
     Name(String),
-    File(File) ,
+    /// Module file
+    File(File),
 }
 
 /// `StacktraceEntry` struct represents the information about one line of the stacktrace.
 pub struct StacktraceEntry {
-   pub address: u64,
-   pub module: ModuleInfo,
-   pub debug: String,
+    /// Function address
+    pub address: u64,
+    /// Information about the module
+    pub module: ModuleInfo,
+    /// Debug information
+    pub debug: String,
 }
 
 impl fmt::Display for StacktraceEntry {
@@ -198,7 +229,6 @@ impl fmt::Display for StacktraceEntry {
                 ModuleInfo::File(x) => x.to_string(),
             },
             self.debug
-
         )
     }
 }
@@ -212,18 +242,31 @@ impl fmt::Display for StacktraceEntry {
 /// # Return value
 ///
 /// The return value is a vector of  'StacktraceEntry' structs
-pub fn gettrace(trace: String) -> error::Result<Vec<StacktraceEntry>> {
+pub fn trace_from_gdb(trace: &String) -> error::Result<Vec<StacktraceEntry>> {
     let mut some = Vec::<StacktraceEntry>::new();
-    let mut hlp = trace.split('\n').map(|s| s.trim().to_string()).collect::<Vec<String>>();
+    let mut hlp = trace
+        .split('\n')
+        .map(|s| s.trim().to_string())
+        .collect::<Vec<String>>();
     if hlp.len() < 2 {
-        return Err(error::Error::ST(format!("cannot get stack trace from this string: {}", trace).to_string()));
+        return Err(error::Error::ST(
+            format!("cannot get stack trace from this string: {}", trace).to_string(),
+        ));
     }
     hlp.remove(0);
     hlp.remove(hlp.len() - 1);
     for x in hlp.iter() {
-         some.push(StacktraceEntry::new(x.clone())?);
+        some.push(StacktraceEntry::new(&x.clone())?);
     }
     Ok(some)
+}
+
+pub fn up_stacktrace_info(trace: &mut Vec<StacktraceEntry>, mappings: &MappedFiles) {
+    trace.iter_mut().for_each(|x| {
+        if let Ok(y) = mappings.find(x.address) {
+            x.upmodinfo(&y);
+        }
+    });
 }
 
 impl StacktraceEntry {
@@ -232,34 +275,52 @@ impl StacktraceEntry {
     /// # Arguments
     ///
     /// * 'trace' - one line of stacktrace from gdb
-    pub fn new(trace: String) -> error::Result<StacktraceEntry> {
-        let mut vectrace = trace.split(' ').map(|s| s.trim().to_string()).collect::<Vec<String>>();
+    pub fn new(trace: &String) -> error::Result<StacktraceEntry> {
+        let mut vectrace = trace
+            .split(' ')
+            .map(|s| s.trim().to_string())
+            .collect::<Vec<String>>();
         vectrace.retain(|trace| trace != "");
         let normname: String;
-        let addr = u64::from_str_radix(vectrace[1].clone().drain(2..).collect::<String>().as_str(), 16).unwrap_or(0);
+        let addr = u64::from_str_radix(
+            vectrace[1].clone().drain(2..).collect::<String>().as_str(),
+            16,
+        )
+        .unwrap_or(0);
         let mut debugg = vectrace[vectrace.len() - 1].clone();
 
-        let first: usize;
-        if addr == 0 {
-            first = 1;
-        } else {
-            first = 3;
-        }
+        let first: usize = if addr == 0 { 1 } else { 3 };
 
+        // In some cases we can see '#0  0xf7fcf569 in __kernel_vsyscall ()', so, pretty good
+        // technical solution below
         if debugg == "()" {
             if first > vectrace.len() {
-                return Err(error::Error::ST(format!("cannot parse this line: {}", trace).to_string()));
+                return Err(error::Error::ST(
+                    format!("cannot parse this line: {}", trace).to_string(),
+                ));
             }
-            normname = vectrace.clone().drain(first..vectrace.len()).collect::<String>();
+            normname = vectrace
+                .clone()
+                .drain(first..vectrace.len())
+                .collect::<String>();
             debugg = "No_file".to_string();
         } else {
             if first > vectrace.len() - 2 {
-                return Err(error::Error::ST(format!("cannot parse this line: {}", trace).to_string()));
+                return Err(error::Error::ST(
+                    format!("cannot parse this line: {}", trace).to_string(),
+                ));
             }
-            normname = vectrace.clone().drain(first..vectrace.len() - 2).collect::<String>();
+            normname = vectrace
+                .clone()
+                .drain(first..vectrace.len() - 2)
+                .collect::<String>();
         }
 
-        Ok(StacktraceEntry{address: addr, module: ModuleInfo::Name(normname), debug: debugg})
+        Ok(StacktraceEntry {
+            address: addr,
+            module: ModuleInfo::Name(normname),
+            debug: debugg,
+        })
     }
 
     /// Method attaches 'File" struct to module information
@@ -272,14 +333,11 @@ impl StacktraceEntry {
     }
 
     /// Method computes the offset between the function and the start of the file
-    pub fn getoffset(&self) -> u64 {
+    pub fn offset_in_module(&self) -> Option<u64> {
         match &self.module {
-            ModuleInfo::Name(name) => {
-                println!("No info, just name: {}", name);
-                0
-            }
+            ModuleInfo::Name(_) => None,
             ModuleInfo::File(file) => {
-                self.address as u64 - file.base_address + file.file_ofs
+                Some(self.address as u64 - file.base_address + file.file_offset)
             }
         }
     }
