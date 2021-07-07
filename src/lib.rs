@@ -261,6 +261,13 @@ pub fn trace_from_gdb(trace: &String) -> error::Result<Vec<StacktraceEntry>> {
     Ok(some)
 }
 
+/// Function updates information about function modules.
+///
+/// # Arguments
+///
+/// * 'trace' - updating vector
+///
+/// * 'mappings' - information about mapped files
 pub fn up_stacktrace_info(trace: &mut Vec<StacktraceEntry>, mappings: &MappedFiles) {
     trace.iter_mut().for_each(|x| {
         if let Ok(y) = mappings.find(x.address) {
