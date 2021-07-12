@@ -52,7 +52,9 @@ use std::process::Command;
 /// `File` struct represents unit (segment) in proccess address space.
 #[derive(Clone, Default, Debug)]
 pub struct File {
+    /// Start address of objfile
     pub base_address: u64,
+    /// End address of objfile
     pub end: u64,
     /// Offset in pages.
     pub file_offset: u64,
@@ -96,8 +98,7 @@ impl fmt::Display for File {
 ///`MappedFiles` all mapped files in crashed proccess.
 #[derive(Clone, Default)]
 pub struct MappedFiles {
-    pub fcount: i32,
-    pub page_size: i32,
+    /// Vector of mapped files
     pub files: Vec<File>,
 }
 
@@ -110,8 +111,9 @@ impl fmt::Display for MappedFiles {
         }
         write!(
             f,
-            "MappedFiles {{ Count:{}, Page_size:{};\n {} }}",
-            self.fcount, self.page_size, files_string
+            "MappedFiles {{ Count:{};\n {} }}",
+            self.files.len(),
+            files_string
         )
     }
 }
@@ -122,7 +124,7 @@ impl MappedFiles {
     /// # Arguments
     ///
     /// * 'mapping' - String of mapped files
-    pub fn from_gdb(mapping: &String) -> error::Result<MappedFiles> {
+    pub fn from_gdb(mapping: &str) -> error::Result<MappedFiles> {
         let mut hlp = mapping
             .split('\n')
             .map(|s| s.trim().to_string())
@@ -171,11 +173,7 @@ impl MappedFiles {
             some.push(hlp.clone());
         }
 
-        Ok(MappedFiles {
-            fcount: some.len() as i32,
-            page_size: 4096,
-            files: some,
-        })
+        Ok(MappedFiles { files: some })
     }
 
     /// Method determines which file contains the address
@@ -233,56 +231,13 @@ impl fmt::Display for StacktraceEntry {
     }
 }
 
-/// Fucntion gets the stacktrace as a string and converts it into vector of 'StacktraceEntry' structs
-///
-/// # Arguments
-///
-/// * 'trace' - stacktrace from gdb
-///
-/// # Return value
-///
-/// The return value is a vector of  'StacktraceEntry' structs
-pub fn trace_from_gdb(trace: &String) -> error::Result<Vec<StacktraceEntry>> {
-    let mut some = Vec::<StacktraceEntry>::new();
-    let mut hlp = trace
-        .split('\n')
-        .map(|s| s.trim().to_string())
-        .collect::<Vec<String>>();
-    if hlp.len() < 2 {
-        return Err(error::Error::ST(
-            format!("cannot get stack trace from this string: {}", trace).to_string(),
-        ));
-    }
-    hlp.remove(0);
-    hlp.remove(hlp.len() - 1);
-    for x in hlp.iter() {
-        some.push(StacktraceEntry::new(&x.clone())?);
-    }
-    Ok(some)
-}
-
-/// Function updates information about function modules.
-///
-/// # Arguments
-///
-/// * 'trace' - updating vector
-///
-/// * 'mappings' - information about mapped files
-pub fn up_stacktrace_info(trace: &mut Vec<StacktraceEntry>, mappings: &MappedFiles) {
-    trace.iter_mut().for_each(|x| {
-        if let Ok(y) = mappings.find(x.address) {
-            x.upmodinfo(&y);
-        }
-    });
-}
-
 impl StacktraceEntry {
     /// Returns 'StacktraceEntry' struct
     ///
     /// # Arguments
     ///
     /// * 'trace' - one line of stacktrace from gdb
-    pub fn new(trace: &String) -> error::Result<StacktraceEntry> {
+    pub fn new(trace: &str) -> error::Result<StacktraceEntry> {
         let mut vectrace = trace
             .split(' ')
             .map(|s| s.trim().to_string())
@@ -347,6 +302,55 @@ impl StacktraceEntry {
                 Some(self.address as u64 - file.base_address + file.file_offset)
             }
         }
+    }
+}
+
+/// Struct represents the information about stack trace
+pub struct Stacktrace {
+    /// Vector of stack trace
+    pub strace: Vec<StacktraceEntry>,
+}
+
+impl Stacktrace {
+    /// Method gets the stacktrace as a string and converts it into vector of 'StacktraceEntry' structs
+    ///
+    /// # Arguments
+    ///
+    /// * 'trace' - stacktrace from gdb
+    ///
+    /// # Return value
+    ///
+    /// The return value is a vector of  'StacktraceEntry' structs
+    pub fn from_gdb(trace: &str) -> error::Result<Stacktrace> {
+        let mut some = Vec::<StacktraceEntry>::new();
+        let mut hlp = trace
+            .split('\n')
+            .map(|s| s.trim().to_string())
+            .collect::<Vec<String>>();
+        if hlp.len() < 2 {
+            return Err(error::Error::ST(
+                format!("cannot get stack trace from this string: {}", trace).to_string(),
+            ));
+        }
+        hlp.remove(0);
+        hlp.remove(hlp.len() - 1);
+        for x in hlp.iter() {
+            some.push(StacktraceEntry::new(&x.clone())?);
+        }
+        Ok(Stacktrace { strace: some })
+    }
+
+    /// Method updates information about function modules.
+    ///
+    /// # Arguments
+    ///
+    /// * 'mappings' - information about mapped files
+    pub fn up_stacktrace_info(&mut self, mappings: &MappedFiles) {
+        self.strace.iter_mut().for_each(|x| {
+            if let Ok(y) = mappings.find(x.address) {
+                x.upmodinfo(&y);
+            }
+        });
     }
 }
 

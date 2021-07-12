@@ -99,7 +99,7 @@ fn test_struct_mapped_files() {
 }
 
 #[test]
-fn test_trace_funcs_and_stacktraceentry_struct() {
+fn test_stacktrace_structs() {
     let bin = abs_path("tests/bins/test_abort32");
     let result = GdbCommand::new(&ExecType::Local(&[&bin, "A"]))
         .bt()
@@ -110,27 +110,27 @@ fn test_trace_funcs_and_stacktraceentry_struct() {
     }
     let result = result.unwrap();
 
-    let sttr = trace_from_gdb(&result[0]);
+    let sttr = Stacktrace::from_gdb(&result[0]);
     if sttr.is_err() {
         assert!(false, "{}", sttr.err().unwrap());
     }
     let mut sttr = sttr.unwrap();
 
     assert_eq!(
-        result[0].contains(format!("{:x}", sttr[sttr.len() - 1].address).as_str()),
+        result[0].contains(format!("{:x}", sttr.strace[sttr.strace.len() - 1].address).as_str()),
         true
     );
     assert_eq!(
-        result[0].contains(sttr[sttr.len() - 1].debug.as_str()),
+        result[0].contains(sttr.strace[sttr.strace.len() - 1].debug.as_str()),
         true
     );
 
     // Testing method 'up_stacktrace_info'
 
     let prmap = MappedFiles::from_gdb(&result[1]).unwrap();
-    up_stacktrace_info(&mut sttr, &prmap);
+    sttr.up_stacktrace_info(&prmap);
 
-    if let ModuleInfo::File(file) = &sttr[sttr.len() - 1].module {
+    if let ModuleInfo::File(file) = &sttr.strace[sttr.strace.len() - 1].module {
         assert_eq!(
             result[1].contains(&format!("{:x}", file.base_address).to_string()),
             true
