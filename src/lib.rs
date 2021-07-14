@@ -72,7 +72,7 @@ impl File {
     ///
     /// * `end` - linear address of end.
     ///
-    /// * `offset` - page offset.
+    /// * `offset` - offset in file.
     ///
     ///* `fname` - full path to binary module.
     pub fn new(base: u64, end: u64, offset: u64, fname: &str) -> Self {
@@ -182,18 +182,16 @@ impl MappedFiles {
     /// # Arguments
     ///
     /// * 'addr' - given address
-    pub fn find(&self, addr: u64) -> error::Result<File> {
+    pub fn find(&self, addr: u64) -> Option<File> {
         let result = self
             .files
             .iter()
             .find(|&x| (x.base_address < addr as u64) && (x.end > addr as u64));
 
         if let Some(x) = result {
-            return Ok(x.clone());
+            return Some(x.clone());
         } else {
-            return Err(error::Error::MappedFilesParse(
-                format!("Cannot find file with address {}", addr).to_string(),
-            ));
+            return None;
         }
     }
 }
@@ -350,7 +348,7 @@ impl Stacktrace {
     /// * 'mappings' - information about mapped files
     pub fn update_modules(&mut self, mappings: &MappedFiles) {
         self.strace.iter_mut().for_each(|x| {
-            if let Ok(y) = mappings.find(x.address) {
+            if let Some(y) = mappings.find(x.address) {
                 x.update_module(&y);
             }
         });

@@ -84,8 +84,8 @@ fn test_struct_mapped_files() {
 
     // Testing method 'find'
     let ffile = prmap.find(prmap.files[prmap.files.len() - 1].base_address + 2);
-    if ffile.is_err() {
-        assert!(false, "{}", ffile.err().unwrap());
+    if ffile.is_none() {
+        assert!(false, "File not found!");
     }
     let ffile = ffile.unwrap();
 
