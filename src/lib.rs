@@ -57,7 +57,7 @@ pub struct File {
     /// End address of objfile
     pub end: u64,
     /// Offset in pages.
-    pub file_offset: u64,
+    pub offset_in_file: u64,
     /// Full path to binary module.
     pub name: String,
 }
@@ -79,7 +79,7 @@ impl File {
         File {
             base_address: base,
             end: end,
-            file_offset: offset,
+            offset_in_file: offset,
             name: String::from(fname),
         }
     }
@@ -90,13 +90,13 @@ impl fmt::Display for File {
         write!(
             f,
             "File {{ Base: 0x{:x}, End: 0x{:x}, offset: 0x{:x}, path: {} }}",
-            self.base_address, self.end, self.file_offset, self.name
+            self.base_address, self.end, self.offset_in_file, self.name
         )
     }
 }
 
-///`MappedFiles` all mapped files in crashed proccess.
-#[derive(Clone, Default)]
+///`MappedFiles` all mapped files in proccess.
+#[derive(Clone, Debug)]
 pub struct MappedFiles {
     /// Vector of mapped files
     pub files: Vec<File>,
@@ -123,14 +123,14 @@ impl MappedFiles {
     ///
     /// # Arguments
     ///
-    /// * 'mapping' - String of mapped files
+    /// * 'mapping' - gdb output string with mapped files
     pub fn from_gdb(mapping: &str) -> error::Result<MappedFiles> {
         let mut hlp = mapping
             .split('\n')
             .map(|s| s.trim().to_string())
             .collect::<Vec<String>>();
         if hlp.len() < 6 {
-            return Err(error::Error::MF(
+            return Err(error::Error::MappedFilesParse(
                 format!("cannot parse this string: {}", mapping).to_string(),
             ));
         }
@@ -145,7 +145,7 @@ impl MappedFiles {
                 .collect::<Vec<String>>();
             filevec.retain(|x| x != "");
             if filevec.len() < 4 {
-                return Err(error::Error::MF(
+                return Err(error::Error::MappedFilesParse(
                     format!("cannot parse this string: {}", mapping).to_string(),
                 ));
             }
@@ -160,14 +160,15 @@ impl MappedFiles {
                     16,
                 )
                 .unwrap(),
-                file_offset: u64::from_str_radix(
+                offset_in_file: u64::from_str_radix(
                     filevec[3].clone().drain(2..).collect::<String>().as_str(),
                     16,
                 )
                 .unwrap(),
-                name: match filevec.len() {
-                    0..=4 => "No_file".to_string(),
-                    _ => filevec[4].clone().to_string(),
+                name: if filevec.len() == 5 {
+                    filevec[4].clone().to_string()
+                } else {
+                    String::new()
                 },
             };
             some.push(hlp.clone());
@@ -190,7 +191,7 @@ impl MappedFiles {
         if let Some(x) = result {
             return Ok(x.clone());
         } else {
-            return Err(error::Error::MF(
+            return Err(error::Error::MappedFilesParse(
                 format!("Cannot find file with address {}", addr).to_string(),
             ));
         }
@@ -198,7 +199,7 @@ impl MappedFiles {
 }
 
 /// 'ModuleInfo' enum represents the name of the module or contains information about the module.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum ModuleInfo {
     /// Module name
     Name(String),
@@ -207,6 +208,7 @@ pub enum ModuleInfo {
 }
 
 /// `StacktraceEntry` struct represents the information about one line of the stacktrace.
+#[derive(Clone, Debug)]
 pub struct StacktraceEntry {
     /// Function address
     pub address: u64,
@@ -257,7 +259,7 @@ impl StacktraceEntry {
         // technical solution below
         if debugg == "()" {
             if first > vectrace.len() {
-                return Err(error::Error::ST(
+                return Err(error::Error::StacktraceParse(
                     format!("cannot parse this line: {}", trace).to_string(),
                 ));
             }
@@ -268,7 +270,7 @@ impl StacktraceEntry {
             debugg = "No_file".to_string();
         } else {
             if first > vectrace.len() - 2 {
-                return Err(error::Error::ST(
+                return Err(error::Error::StacktraceParse(
                     format!("cannot parse this line: {}", trace).to_string(),
                 ));
             }
@@ -290,22 +292,23 @@ impl StacktraceEntry {
     /// # Arguments
     ///
     /// 'file' - struct 'File'
-    pub fn upmodinfo(&mut self, file: &File) {
+    pub fn update_module(&mut self, file: &File) {
         self.module = ModuleInfo::File(file.clone());
     }
 
     /// Method computes the offset between the function and the start of the file
-    pub fn offset_in_module(&self) -> Option<u64> {
+    pub fn offset(&self) -> Option<u64> {
         match &self.module {
             ModuleInfo::Name(_) => None,
             ModuleInfo::File(file) => {
-                Some(self.address as u64 - file.base_address + file.file_offset)
+                Some(self.address as u64 - file.base_address + file.offset_in_file)
             }
         }
     }
 }
 
 /// Struct represents the information about stack trace
+#[derive(Clone, Debug)]
 pub struct Stacktrace {
     /// Vector of stack trace
     pub strace: Vec<StacktraceEntry>,
@@ -328,7 +331,7 @@ impl Stacktrace {
             .map(|s| s.trim().to_string())
             .collect::<Vec<String>>();
         if hlp.len() < 2 {
-            return Err(error::Error::ST(
+            return Err(error::Error::StacktraceParse(
                 format!("cannot get stack trace from this string: {}", trace).to_string(),
             ));
         }
@@ -345,10 +348,10 @@ impl Stacktrace {
     /// # Arguments
     ///
     /// * 'mappings' - information about mapped files
-    pub fn up_stacktrace_info(&mut self, mappings: &MappedFiles) {
+    pub fn update_modules(&mut self, mappings: &MappedFiles) {
         self.strace.iter_mut().for_each(|x| {
             if let Ok(y) = mappings.find(x.address) {
-                x.upmodinfo(&y);
+                x.update_module(&y);
             }
         });
     }

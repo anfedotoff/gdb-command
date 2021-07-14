@@ -70,8 +70,9 @@ fn test_struct_mapped_files() {
         true
     );
     assert_eq!(
-        result[0]
-            .contains(format!("0x{:x}", prmap.files[prmap.files.len() - 1].file_offset).as_str()),
+        result[0].contains(
+            format!("0x{:x}", prmap.files[prmap.files.len() - 1].offset_in_file).as_str()
+        ),
         true
     );
     if prmap.files[prmap.files.len() - 1].name != "No_file" {
@@ -93,8 +94,8 @@ fn test_struct_mapped_files() {
         prmap.files[prmap.files.len() - 1].base_address
     );
     assert_eq!(
-        ffile.file_offset,
-        prmap.files[prmap.files.len() - 1].file_offset
+        ffile.offset_in_file,
+        prmap.files[prmap.files.len() - 1].offset_in_file
     );
 }
 
@@ -128,7 +129,7 @@ fn test_stacktrace_structs() {
     // Testing method 'up_stacktrace_info'
 
     let prmap = MappedFiles::from_gdb(&result[1]).unwrap();
-    sttr.up_stacktrace_info(&prmap);
+    sttr.update_modules(&prmap);
 
     if let ModuleInfo::File(file) = &sttr.strace[sttr.strace.len() - 1].module {
         assert_eq!(
@@ -140,7 +141,7 @@ fn test_stacktrace_structs() {
             true
         );
         assert_eq!(
-            result[1].contains(&format!("{:x}", file.file_offset).to_string()),
+            result[1].contains(&format!("{:x}", file.offset_in_file).to_string()),
             true
         );
         assert_eq!(
