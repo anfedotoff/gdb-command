@@ -279,7 +279,7 @@ impl StacktraceEntry {
         })
     }
 
-    /// Method attaches 'File" struct to module information
+    /// Method attaches 'File' struct to module information
     ///
     /// # Arguments
     ///
