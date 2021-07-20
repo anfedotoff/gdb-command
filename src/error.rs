@@ -16,6 +16,10 @@ pub enum Error {
     NoFile(String),
     /// An IO based error
     IO(io::Error),
+    /// Error parsing stacktrace
+    StacktraceParse(String),
+    /// Error parsing mapped files
+    MappedFilesParse(String),
 }
 
 impl error::Error for Error {
@@ -25,6 +29,8 @@ impl error::Error for Error {
             Error::ParseOutput(_) => None,
             Error::NoFile(_) => None,
             Error::ExitCode(_) => None,
+            Error::StacktraceParse(_) => None,
+            Error::MappedFilesParse(_) => None,
         }
     }
 }
@@ -42,6 +48,8 @@ impl fmt::Display for Error {
             Error::ExitCode(code) => write!(fmt, "Gdb finished with exit code:{}", code),
             Error::ParseOutput(ref msg) => write!(fmt, "Gdb parsing output error: {}", msg),
             Error::NoFile(ref msg) => write!(fmt, "File not found: {}", msg),
+            Error::StacktraceParse(ref msg) => write!(fmt, "Error parsing stack trace: {}", msg),
+            Error::MappedFilesParse(ref msg) => write!(fmt, "Error parsing mapped files: {}", msg),
         }
     }
 }

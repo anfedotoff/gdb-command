@@ -44,6 +44,116 @@ fn test_local_safe_func() {
 }
 
 #[test]
+fn test_struct_mapped_files() {
+    let bin = abs_path("tests/bins/test_abort");
+    let result = GdbCommand::new(&ExecType::Local(&[&bin, "A"]))
+        .mappings()
+        .run();
+    if result.is_err() {
+        assert!(false, "{}", result.err().unwrap());
+    }
+    let result = result.unwrap();
+
+    let prmap = MappedFiles::from_gdb(&result[0]);
+    if prmap.is_err() {
+        assert!(false, "{}", prmap.err().unwrap());
+    }
+    let prmap = prmap.unwrap();
+
+    assert_eq!(
+        result[0]
+            .contains(format!("0x{:x}", prmap.files[prmap.files.len() - 1].base_address).as_str()),
+        true
+    );
+    assert_eq!(
+        result[0].contains(format!("0x{:x}", prmap.files[prmap.files.len() - 1].end).as_str()),
+        true
+    );
+    assert_eq!(
+        result[0].contains(
+            format!("0x{:x}", prmap.files[prmap.files.len() - 1].offset_in_file).as_str()
+        ),
+        true
+    );
+    if prmap.files[prmap.files.len() - 1].name != "No_file" {
+        assert_eq!(
+            result[0].contains(&prmap.files[prmap.files.len() - 1].name.clone()),
+            true
+        );
+    }
+
+    // Testing method 'find'
+    let ffile = prmap.find(prmap.files[prmap.files.len() - 1].base_address + 2);
+    if ffile.is_none() {
+        assert!(false, "File not found!");
+    }
+    let ffile = ffile.unwrap();
+
+    assert_eq!(
+        ffile.base_address,
+        prmap.files[prmap.files.len() - 1].base_address
+    );
+    assert_eq!(
+        ffile.offset_in_file,
+        prmap.files[prmap.files.len() - 1].offset_in_file
+    );
+}
+
+#[test]
+fn test_stacktrace_structs() {
+    let bin = abs_path("tests/bins/test_abort32");
+    let result = GdbCommand::new(&ExecType::Local(&[&bin, "A"]))
+        .bt()
+        .mappings()
+        .run();
+    if result.is_err() {
+        assert!(false, "{}", result.err().unwrap());
+    }
+    let result = result.unwrap();
+
+    let sttr = Stacktrace::from_gdb(&result[0]);
+    if sttr.is_err() {
+        assert!(false, "{}", sttr.err().unwrap());
+    }
+    let mut sttr = sttr.unwrap();
+
+    assert_eq!(
+        result[0].contains(format!("{:x}", sttr.strace[sttr.strace.len() - 1].address).as_str()),
+        true
+    );
+    assert_eq!(
+        result[0].contains(sttr.strace[sttr.strace.len() - 1].debug.as_str()),
+        true
+    );
+
+    // Testing method 'up_stacktrace_info'
+
+    let prmap = MappedFiles::from_gdb(&result[1]).unwrap();
+    sttr.update_modules(&prmap);
+
+    if let ModuleInfo::File(file) = &sttr.strace[sttr.strace.len() - 1].module {
+        assert_eq!(
+            result[1].contains(&format!("{:x}", file.base_address).to_string()),
+            true
+        );
+        assert_eq!(
+            result[1].contains(&format!("{:x}", file.end).to_string()),
+            true
+        );
+        assert_eq!(
+            result[1].contains(&format!("{:x}", file.offset_in_file).to_string()),
+            true
+        );
+        assert_eq!(
+            result[1].contains(&format!("{}", file.name).to_string()),
+            true
+        );
+    } else {
+        assert!(false, "No file...");
+    }
+}
+
+#[test]
 #[ignore] // To run this test: If Ubuntu 20.04 just remove ignore. Other systems: recollect the core.
 fn test_core_canary() {
     let bin = abs_path("tests/bins/test_canary");
