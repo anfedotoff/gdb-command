@@ -56,7 +56,7 @@ pub struct File {
     pub base_address: u64,
     /// End address of objfile
     pub end: u64,
-    /// Offset in pages.
+    /// Offset in file.
     pub offset_in_file: u64,
     /// Full path to binary module.
     pub name: String,
@@ -259,7 +259,7 @@ impl StacktraceEntry {
                 .clone()
                 .drain(first..vectrace.len())
                 .collect::<String>();
-            debugg = "No_file".to_string();
+            debugg = String::new();
         } else {
             if first > vectrace.len() - 2 {
                 return Err(error::Error::StacktraceParse(
