@@ -183,16 +183,10 @@ impl MappedFiles {
     ///
     /// * 'addr' - given address
     pub fn find(&self, addr: u64) -> Option<File> {
-        let result = self
-            .files
+        self.files
             .iter()
-            .find(|&x| (x.base_address < addr as u64) && (x.end > addr as u64));
-
-        if let Some(x) = result {
-            return Some(x.clone());
-        } else {
-            return None;
-        }
+            .find(|&x| (x.base_address < addr as u64) && (x.end > addr as u64))
+            .cloned()
     }
 }
 
