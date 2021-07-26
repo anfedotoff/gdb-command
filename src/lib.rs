@@ -134,8 +134,15 @@ impl MappedFiles {
                 format!("cannot parse this string: {}", mapping).to_string(),
             ));
         }
-        hlp.drain(0..5);
-        hlp.remove(hlp.len() - 1);
+
+        let pos = hlp.iter().position(|x| x.contains("Start Addr"));
+        if pos.is_none() {
+            return Err(error::Error::MappedFilesParse(
+                format!("cannot parse this string: {}", mapping).to_string(),
+            ));
+        }
+        hlp.drain(0..pos.unwrap() + 1);
+
         let mut some = Vec::<File>::new();
 
         for x in hlp.iter() {
@@ -306,6 +313,17 @@ pub struct Stacktrace {
     pub strace: Vec<StacktraceEntry>,
 }
 
+impl fmt::Display for Stacktrace {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut entry_string = String::new();
+        for en in self.strace.iter() {
+            entry_string.push_str(&en.to_string());
+            entry_string.push_str("; \n");
+        }
+        write!(f, "Stacktrace\n{}", entry_string)
+    }
+}
+
 impl Stacktrace {
     /// Method gets the stacktrace as a string and converts it into vector of 'StacktraceEntry' structs
     ///
@@ -318,7 +336,7 @@ impl Stacktrace {
     /// The return value is a vector of  'StacktraceEntry' structs
     pub fn from_gdb(trace: &str) -> error::Result<Stacktrace> {
         let mut some = Vec::<StacktraceEntry>::new();
-        let mut hlp = trace
+        let hlp = trace
             .split('\n')
             .map(|s| s.trim().to_string())
             .collect::<Vec<String>>();
@@ -327,8 +345,7 @@ impl Stacktrace {
                 format!("cannot get stack trace from this string: {}", trace).to_string(),
             ));
         }
-        hlp.remove(0);
-        hlp.remove(hlp.len() - 1);
+
         for x in hlp.iter() {
             some.push(StacktraceEntry::new(&x.clone())?);
         }
