@@ -232,6 +232,41 @@ impl fmt::Display for StacktraceEntry {
     }
 }
 
+impl PartialEq for StacktraceEntry {
+    fn eq(&self, other: &Self) -> bool {
+        match &self.module {
+            ModuleInfo::Name(name1) => {
+                if let ModuleInfo::Name(name2) = &other.module {
+                    let name1: String = name1.clone().drain(..name1.find('(').unwrap()).collect();
+                    let name2: String = name2.clone().drain(..name2.find('(').unwrap()).collect();
+                    if name1 == name2 {
+                        true
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
+            }
+            ModuleInfo::File(file1) => {
+                if let ModuleInfo::File(file2) = &other.module {
+                    if (file1.name == file2.name)
+                        && (self.offset().unwrap() == other.offset().unwrap())
+                    {
+                        true
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
+            }
+        }
+    }
+}
+
+impl Eq for StacktraceEntry {}
+
 impl StacktraceEntry {
     /// Returns 'StacktraceEntry' struct
     ///
