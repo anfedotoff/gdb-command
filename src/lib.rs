@@ -247,7 +247,7 @@ impl PartialEq for StacktraceEntry {
                 } else {
                     false
                 }
-            },
+            }
             ModuleInfo::File(file1) => {
                 if let ModuleInfo::File(file2) = &other.module {
                     if (file1.name == file2.name)
@@ -260,7 +260,7 @@ impl PartialEq for StacktraceEntry {
                 } else {
                     false
                 }
-            },
+            }
         }
     }
 }
