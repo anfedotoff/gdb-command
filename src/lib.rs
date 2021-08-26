@@ -46,9 +46,9 @@
 
 use regex::Regex;
 use std::fmt;
+use std::hash::{Hash, Hasher};
 use std::path::Path;
 use std::process::Command;
-use std::hash::{Hash, Hasher};
 
 /// `File` struct represents unit (segment) in proccess address space.
 #[derive(Clone, Default, Debug)]
@@ -236,9 +236,7 @@ impl fmt::Display for StacktraceEntry {
 impl PartialEq for StacktraceEntry {
     fn eq(&self, other: &Self) -> bool {
         match &self.module {
-            ModuleInfo::Name(_) => {
-                self.address == other.address
-            }
+            ModuleInfo::Name(_) => self.address == other.address,
             ModuleInfo::File(file1) => {
                 if let ModuleInfo::File(file2) = &other.module {
                     if (file1.name == file2.name)
@@ -259,7 +257,7 @@ impl PartialEq for StacktraceEntry {
 impl Eq for StacktraceEntry {}
 
 impl Hash for StacktraceEntry {
-    fn hash<H: Hasher>(&self, state: &mut H) { 
+    fn hash<H: Hasher>(&self, state: &mut H) {
         match &self.module {
             ModuleInfo::Name(_) => {
                 self.address.hash(state);
