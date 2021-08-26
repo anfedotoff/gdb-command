@@ -347,7 +347,7 @@ impl StacktraceEntry {
 }
 
 /// Struct represents the information about stack trace
-#[derive(Clone, Debug, Hash)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct Stacktrace {
     /// Vector of stack trace
     pub strace: Vec<StacktraceEntry>,
