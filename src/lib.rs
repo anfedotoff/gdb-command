@@ -48,6 +48,7 @@ use regex::Regex;
 use std::fmt;
 use std::path::Path;
 use std::process::Command;
+use std::hash::{Hash, Hasher};
 
 /// `File` struct represents unit (segment) in proccess address space.
 #[derive(Clone, Default, Debug)]
@@ -257,6 +258,20 @@ impl PartialEq for StacktraceEntry {
 
 impl Eq for StacktraceEntry {}
 
+impl Hash for StacktraceEntry {
+    fn hash<H: Hasher>(&self, state: &mut H) { 
+        match &self.module {
+            ModuleInfo::Name(_) => {
+                self.address.hash(state);
+            }
+            ModuleInfo::File(file) => {
+                file.name.hash(state);
+                self.offset().hash(state);
+            }
+        }
+    }
+}
+
 impl StacktraceEntry {
     /// Returns 'StacktraceEntry' struct
     ///
@@ -332,7 +347,7 @@ impl StacktraceEntry {
 }
 
 /// Struct represents the information about stack trace
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash)]
 pub struct Stacktrace {
     /// Vector of stack trace
     pub strace: Vec<StacktraceEntry>,
