@@ -46,6 +46,7 @@
 
 use regex::Regex;
 use std::fmt;
+use std::hash::{Hash, Hasher};
 use std::path::Path;
 use std::process::Command;
 
@@ -235,19 +236,7 @@ impl fmt::Display for StacktraceEntry {
 impl PartialEq for StacktraceEntry {
     fn eq(&self, other: &Self) -> bool {
         match &self.module {
-            ModuleInfo::Name(name1) => {
-                if let ModuleInfo::Name(name2) = &other.module {
-                    let name1: String = name1.clone().drain(..name1.find('(').unwrap()).collect();
-                    let name2: String = name2.clone().drain(..name2.find('(').unwrap()).collect();
-                    if name1 == name2 {
-                        true
-                    } else {
-                        false
-                    }
-                } else {
-                    false
-                }
-            }
+            ModuleInfo::Name(_) => self.address == other.address,
             ModuleInfo::File(file1) => {
                 if let ModuleInfo::File(file2) = &other.module {
                     if (file1.name == file2.name)
@@ -266,6 +255,20 @@ impl PartialEq for StacktraceEntry {
 }
 
 impl Eq for StacktraceEntry {}
+
+impl Hash for StacktraceEntry {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match &self.module {
+            ModuleInfo::Name(_) => {
+                self.address.hash(state);
+            }
+            ModuleInfo::File(file) => {
+                file.name.hash(state);
+                self.offset().hash(state);
+            }
+        }
+    }
+}
 
 impl StacktraceEntry {
     /// Returns 'StacktraceEntry' struct
@@ -342,7 +345,7 @@ impl StacktraceEntry {
 }
 
 /// Struct represents the information about stack trace
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct Stacktrace {
     /// Vector of stack trace
     pub strace: Vec<StacktraceEntry>,
