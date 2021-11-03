@@ -101,7 +101,7 @@ fn test_struct_mapped_files() {
 
 #[test]
 fn test_stacktrace_structs() {
-    let bin = abs_path("tests/bins/test_abort32");
+    let bin = abs_path("tests/bins/test_abort");
     let result = GdbCommand::new(&ExecType::Local(&[&bin, "A"]))
         .bt()
         .mappings()
@@ -122,7 +122,10 @@ fn test_stacktrace_structs() {
         true
     );
     assert_eq!(
-        result[0].contains(sttr.strace[sttr.strace.len() - 1].debug.as_str()),
+        result[0].contains(&match &sttr.strace[sttr.strace.len() - 1].debug {
+            DebugInfo::ModuleName(name) => name.clone(),
+            DebugInfo::Debug(x) => x.file_path.clone(),
+        }),
         true
     );
 
@@ -151,6 +154,34 @@ fn test_stacktrace_structs() {
     } else {
         assert!(false, "No file...");
     }
+
+    let mystacktrace = &[
+        "#0  __GI_raise (sig=sig@entry=6) at ../sysdeps/unix/sysv/linux/raise.c:50",
+        "#1  __GI_raise (sig=sig@entry=6) at (/path/to/bin+0x123)",
+        "#2  __GI_raise () at /path:16:17",
+        "#3  __GI_raise () at /path:16",
+        "#0  0x00007ffff7dd5859 in __GI_abort ()  at ../sysdeps/unix/sysv/linux/raise.c:50",
+        "#1  0x00007ffff7dd5859 in __GI_abort () at (/path/to/bin+0x122)",
+        "#2  0x00007ffff7dd5859 in __GI_abort () /path:16:17",
+        "#3  0x00007ffff7dd5859 in __GI_abort () at /path:16",
+        "#4  0x00007ffff7dd5859 in __GI_abort () at /path", /*"#4  0x00007ffff7dd5859 in libc.so.6",
+                                                            "#5  in libc.so.6"*/
+    ]
+    .join("\n")
+    .to_string();
+
+    let sttr = Stacktrace::from_gdb(mystacktrace);
+    if sttr.is_err() {
+        assert!(false, "{}", sttr.err().unwrap());
+    }
+    let sttr = sttr.unwrap();
+
+    // Eq check
+    assert_eq!(sttr.strace[0], sttr.strace[4]);
+    assert_eq!(sttr.strace[1] == sttr.strace[5], false);
+    assert_eq!(sttr.strace[2], sttr.strace[6]);
+    assert_eq!(sttr.strace[3], sttr.strace[7]);
+    //assert!(false, "{}", sttr);
 }
 
 #[test]
