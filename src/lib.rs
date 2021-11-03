@@ -264,6 +264,7 @@ impl PartialEq for StacktraceEntry {
                     && x1.offset_in_line == x2.offset_in_line;
             }
         }
+
         match &self.module {
             ModuleInfo::Name(_) => self.address == other.address,
             ModuleInfo::File(file1) => {
