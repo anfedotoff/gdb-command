@@ -495,6 +495,7 @@ impl Stacktrace {
         }
 
         for x in hlp.iter() {
+            println!("LINE : {}", x);
             some.push(StacktraceEntry::new(&x.clone())?);
         }
         Ok(Stacktrace { strace: some })
