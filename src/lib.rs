@@ -484,10 +484,12 @@ impl Stacktrace {
     /// The return value is a vector of  'StacktraceEntry' structs
     pub fn from_gdb(trace: &str) -> error::Result<Stacktrace> {
         let mut some = Vec::<StacktraceEntry>::new();
-        let hlp = trace
+        let mut hlp = trace
             .split('\n')
             .map(|s| s.trim().to_string())
             .collect::<Vec<String>>();
+        hlp.retain(|trace| trace != "");
+
         if hlp.len() < 1 {
             return Err(error::Error::StacktraceParse(
                 format!("cannot get stack trace from this string: {}", trace).to_string(),
@@ -495,7 +497,6 @@ impl Stacktrace {
         }
 
         for x in hlp.iter() {
-            println!("LINE : {}", x);
             some.push(StacktraceEntry::new(&x.clone())?);
         }
         Ok(Stacktrace { strace: some })
