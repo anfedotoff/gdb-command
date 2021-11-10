@@ -350,7 +350,7 @@ impl StacktraceEntry {
             }
             func_with_args = vectrace
                 .clone()
-                .drain(first..vectrace.len() - 2)
+                .drain(first..vectrace.len() - 1)
                 .collect::<String>();
 
             // Find debug info about line and pos in line
