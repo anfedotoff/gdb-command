@@ -370,7 +370,8 @@ impl StacktraceEntry {
 
             let asan_re = format!("^(?:{})$", entries.join("|"));
 
-            let asan_base = Regex::new(&asan_re).expect("Regex failed to compile while asan parsing");
+            let asan_base =
+                Regex::new(&asan_re).expect("Regex failed to compile while asan parsing");
 
             let asan_captures = asan_base.captures(&debugg);
             let mut file_path = String::new();
