@@ -218,16 +218,22 @@ pub struct StacktraceEntry {
     pub debug: DebugInfo,
 }
 
+/// 'DebugInfo' enum represents the name of the frame's module or contains information about the frame's module.
 #[derive(Clone, Debug)]
 pub enum DebugInfo {
     ModuleName(String),
-    Debug(DebugStruct),
+    Debug(FrameDebug),
 }
 
+/// `FrameDebug` struct represents the debug information of one frame in stack trace.
 #[derive(Clone, Debug)]
-pub struct DebugStruct {
+pub struct FrameDebug {
+    /// /path:123:456
+    /// "/path"
     pub file_path: String,
+    /// 123
     pub offset_in_file: u64,
+    /// 456
     pub offset_in_line: u64,
 }
 
@@ -355,7 +361,7 @@ impl StacktraceEntry {
 
             // Find debug info about line and pos in line
 
-            let entries = &[
+            let dentries = &[
                 // "(/path/to/bin+0x123)"
                 r"\((?P<file_path_1>[^+]+)\+0x(?P<module_offset_1>[0-9a-fA-F]+)\)",
                 // "/path:16:17"
@@ -368,15 +374,14 @@ impl StacktraceEntry {
                 r"(?P<file_path_5>[^ ]+)$",
             ];
 
-            let asan_re = format!("^(?:{})$", entries.join("|"));
+            let asan_re = format!("^(?:{})$", dentries.join("|"));
 
             let asan_base =
                 Regex::new(&asan_re).expect("Regex failed to compile while asan parsing");
 
             let asan_captures = asan_base.captures(&debugg);
-            let mut file_path = String::new();
             if let Some(captures) = &asan_captures {
-                file_path = match captures
+                let file_path = match captures
                     .name("file_path_1")
                     .or_else(|| captures.name("file_path_2"))
                     .or_else(|| captures.name("file_path_3"))
@@ -420,7 +425,7 @@ impl StacktraceEntry {
                     return Ok(StacktraceEntry {
                         address: addr,
                         module: ModuleInfo::Name(func_with_args),
-                        debug: DebugInfo::Debug(DebugStruct {
+                        debug: DebugInfo::Debug(FrameDebug {
                             file_path: file_path,
                             offset_in_file: *off_in_f,
                             offset_in_line: offset_in_line,
@@ -431,7 +436,7 @@ impl StacktraceEntry {
             return Ok(StacktraceEntry {
                 address: addr,
                 module: ModuleInfo::Name(func_with_args),
-                debug: DebugInfo::ModuleName(file_path),
+                debug: DebugInfo::ModuleName(debugg),
             });
         }
     }
@@ -486,19 +491,19 @@ impl Stacktrace {
     /// The return value is a vector of  'StacktraceEntry' structs
     pub fn from_gdb(trace: &str) -> error::Result<Stacktrace> {
         let mut some = Vec::<StacktraceEntry>::new();
-        let mut hlp = trace
+        let mut entries = trace
             .split('\n')
             .map(|s| s.trim().to_string())
             .collect::<Vec<String>>();
-        hlp.retain(|trace| trace != "");
+        entries.retain(|trace| trace != "");
 
-        if hlp.len() < 1 {
+        if entries.len() < 1 {
             return Err(error::Error::StacktraceParse(
                 format!("cannot get stack trace from this string: {}", trace).to_string(),
             ));
         }
 
-        for x in hlp.iter() {
+        for x in entries.iter() {
             some.push(StacktraceEntry::new(&x.clone())?);
         }
         Ok(Stacktrace { strace: some })

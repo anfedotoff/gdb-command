@@ -118,11 +118,11 @@ fn test_stacktrace_structs() {
     let mut sttr = sttr.unwrap();
 
     assert_eq!(
-        result[0].contains(format!("{:x}", sttr.strace[sttr.strace.len() - 1].address).as_str()),
+        result[0].contains(format!("{:x}", sttr.strace.last().unwrap().address).as_str()),
         true
     );
     assert_eq!(
-        result[0].contains(&match &sttr.strace[sttr.strace.len() - 1].debug {
+        result[0].contains(&match &sttr.strace.last().unwrap().debug {
             DebugInfo::ModuleName(name) => name.clone(),
             DebugInfo::Debug(x) => x.file_path.clone(),
         }),
@@ -181,7 +181,6 @@ fn test_stacktrace_structs() {
     assert_eq!(sttr.strace[1] == sttr.strace[5], false);
     assert_eq!(sttr.strace[2], sttr.strace[6]);
     assert_eq!(sttr.strace[3], sttr.strace[7]);
-    //assert!(false, "{}", sttr);
 }
 
 #[test]
