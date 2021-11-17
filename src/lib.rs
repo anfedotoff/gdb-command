@@ -294,6 +294,13 @@ impl Eq for StacktraceEntry {}
 
 impl Hash for StacktraceEntry {
     fn hash<H: Hasher>(&self, state: &mut H) {
+        if let DebugInfo::Debug(x) = &self.debug {
+            x.file_path.hash(state);
+            x.offset_in_file.hash(state);
+            x.offset_in_line.hash(state);
+            return;
+        }
+
         match &self.module {
             ModuleInfo::Name(_) => {
                 self.address.hash(state);

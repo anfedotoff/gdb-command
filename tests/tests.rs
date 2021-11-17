@@ -1,4 +1,5 @@
 use gdb_command::*;
+use std::collections::HashSet;
 
 /// Returns an absolute path for relative path.
 fn abs_path<'a>(rpath: &'a str) -> String {
@@ -156,7 +157,7 @@ fn test_stacktrace_structs() {
     }
 
     let mystacktrace = &[
-        "#0  __GI_raise (sig=sig@entry=6) at ../sysdeps/unix/sysv/linux/raise.c:50",
+        "#0  0x1123  __GI_raise (sig=sig@entry=6) at ../sysdeps/unix/sysv/linux/raise.c:50",
         "#1  __GI_raise (sig=sig@entry=6) at (/path/to/bin+0x123)",
         "#2  __GI_raise () at /path:16:17",
         "#3  __GI_raise () at /path:16",
@@ -181,6 +182,25 @@ fn test_stacktrace_structs() {
     assert_eq!(sttr.strace[1] == sttr.strace[5], false);
     assert_eq!(sttr.strace[2], sttr.strace[6]);
     assert_eq!(sttr.strace[3], sttr.strace[7]);
+
+    // Hash check
+    let mut tracehash = HashSet::new();
+
+    let mut trace2 = Vec::<StacktraceEntry>::new();
+    trace2.push(sttr.strace[0].clone());
+    trace2.push(sttr.strace[2].clone());
+    let trace2 = Stacktrace { strace: trace2 };
+    tracehash.insert(trace2);
+
+    let mut trace2 = Vec::<StacktraceEntry>::new();
+    trace2.push(sttr.strace[4].clone());
+    trace2.push(sttr.strace[6].clone());
+    let trace2 = Stacktrace { strace: trace2 };
+    tracehash.insert(trace2);
+
+    if tracehash.len() != 1 {
+        assert!(false, "Hash check fail");
+    }
 }
 
 #[test]
