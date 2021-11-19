@@ -338,7 +338,11 @@ impl StacktraceEntry {
             return Ok(StacktraceEntry {
                 address: addr,
                 module: ModuleInfo::Name(func_with_args),
-                debug: DebugInfo{file_path:"".to_string(), offset_in_file: None, offset_in_line: 0 as u64},
+                debug: DebugInfo {
+                    file_path: "".to_string(),
+                    offset_in_file: None,
+                    offset_in_line: 0 as u64,
+                },
             });
         } else {
             let func_with_args = if first < vectrace.len() - 1 {
@@ -426,7 +430,11 @@ impl StacktraceEntry {
             return Ok(StacktraceEntry {
                 address: addr,
                 module: ModuleInfo::Name(func_with_args),
-                debug: DebugInfo{file_path: debug_line, offset_in_file: None, offset_in_line: 0 as u64},
+                debug: DebugInfo {
+                    file_path: debug_line,
+                    offset_in_file: None,
+                    offset_in_line: 0 as u64,
+                },
             });
         }
     }
