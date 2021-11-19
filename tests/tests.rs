@@ -1,4 +1,5 @@
 use gdb_command::*;
+use std::collections::HashSet;
 
 /// Returns an absolute path for relative path.
 fn abs_path<'a>(rpath: &'a str) -> String {
@@ -101,7 +102,7 @@ fn test_struct_mapped_files() {
 
 #[test]
 fn test_stacktrace_structs() {
-    let bin = abs_path("tests/bins/test_abort32");
+    let bin = abs_path("tests/bins/test_abort");
     let result = GdbCommand::new(&ExecType::Local(&[&bin, "A"]))
         .bt()
         .mappings()
@@ -118,11 +119,11 @@ fn test_stacktrace_structs() {
     let mut sttr = sttr.unwrap();
 
     assert_eq!(
-        result[0].contains(format!("{:x}", sttr.strace[sttr.strace.len() - 1].address).as_str()),
+        result[0].contains(format!("{:x}", sttr.strace.last().unwrap().address).as_str()),
         true
     );
     assert_eq!(
-        result[0].contains(sttr.strace[sttr.strace.len() - 1].debug.as_str()),
+        result[0].contains(&sttr.strace.last().unwrap().debug.file_path),
         true
     );
 
@@ -150,6 +151,50 @@ fn test_stacktrace_structs() {
         );
     } else {
         assert!(false, "No file...");
+    }
+
+    let mystacktrace = &[
+        "#0  0x1123  __GI_raise (sig=sig@entry=6) at ../sysdeps/unix/sysv/linux/raise.c:50",
+        "#1  __GI_raise (sig=sig@entry=6) at (/path/to/bin+0x123)",
+        "#2  __GI_raise () at /path:16:17",
+        "#3  __GI_raise () at /path:16",
+        "#4  (/path+0x10)",
+        "#0  0x00007ffff7dd5859 in __GI_abort ()  at ../sysdeps/unix/sysv/linux/raise.c:50",
+        "#1  0x00007ffff7dd5859 in __GI_abort () at (/path/to/bin+0x122)",
+        "#2  0x00007ffff7dd5859 in __GI_abort () /path:16:17",
+        "#3  0x00007ffff7dd5859 in __GI_abort () at /path:16",
+        "#4  0x00007ffff7dd5859 /path:16",
+        "#5  0x00007ffff7dd5859 in __GI_abort () at /path",
+        /*#6  in libc.so.6"*/
+    ]
+    .join("\n")
+    .to_string();
+
+    let sttr = Stacktrace::from_gdb(mystacktrace);
+    if sttr.is_err() {
+        assert!(false, "{}", sttr.err().unwrap());
+    }
+    let sttr = sttr.unwrap();
+
+    // Eq check
+    assert_eq!(sttr.strace[0], sttr.strace[5]);
+    assert_eq!(sttr.strace[1] == sttr.strace[6], false);
+    assert_eq!(sttr.strace[2], sttr.strace[7]);
+    assert_eq!(sttr.strace[3], sttr.strace[8]);
+    assert_eq!(sttr.strace[4], sttr.strace[9]);
+
+    // Hash check
+    let mut tracehash = HashSet::new();
+
+    tracehash.insert(Stacktrace {
+        strace: [sttr.strace[0].clone(), sttr.strace[2].clone()].to_vec(),
+    });
+    tracehash.insert(Stacktrace {
+        strace: [sttr.strace[5].clone(), sttr.strace[7].clone()].to_vec(),
+    });
+
+    if tracehash.len() != 1 {
+        assert!(false, "Hash check fail");
     }
 }
 

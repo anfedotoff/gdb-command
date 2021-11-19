@@ -20,12 +20,15 @@ pub enum Error {
     StacktraceParse(String),
     /// Error parsing mapped files
     MappedFilesParse(String),
+    /// An ParseInt based error
+    IntParse(std::num::ParseIntError),
 }
 
 impl error::Error for Error {
     fn source(&self) -> Option<&(dyn error::Error + 'static)> {
         match *self {
             Error::IO(ref io) => Some(io),
+            Error::IntParse(ref pr) => Some(pr),
             Error::ParseOutput(_) => None,
             Error::NoFile(_) => None,
             Error::ExitCode(_) => None,
@@ -41,10 +44,17 @@ impl From<io::Error> for Error {
     }
 }
 
+impl From<std::num::ParseIntError> for Error {
+    fn from(err: std::num::ParseIntError) -> Error {
+        Error::IntParse(err)
+    }
+}
+
 impl fmt::Display for Error {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Error::IO(ref err) => write!(fmt, "{}", err),
+            Error::IntParse(ref err) => write!(fmt, "{}", err),
             Error::ExitCode(code) => write!(fmt, "Gdb finished with exit code:{}", code),
             Error::ParseOutput(ref msg) => write!(fmt, "Gdb parsing output error: {}", msg),
             Error::NoFile(ref msg) => write!(fmt, "File not found: {}", msg),

@@ -215,7 +215,19 @@ pub struct StacktraceEntry {
     /// Information about the module
     pub module: ModuleInfo,
     /// Debug information
-    pub debug: String,
+    pub debug: DebugInfo,
+}
+
+/// `FrameDebug` struct represents the debug information of one frame in stack trace.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DebugInfo {
+    /// /path:123:456
+    /// "/path"
+    pub file_path: String,
+    /// 123
+    pub offset_in_file: Option<u64>,
+    /// 456
+    pub offset_in_line: u64,
 }
 
 impl fmt::Display for StacktraceEntry {
@@ -228,13 +240,25 @@ impl fmt::Display for StacktraceEntry {
                 ModuleInfo::Name(x) => x,
                 ModuleInfo::File(x) => x.to_string(),
             },
-            self.debug
+            match &self.debug.offset_in_file {
+                Some(oif) => [
+                    self.debug.file_path.clone(),
+                    oif.to_string(),
+                    self.debug.offset_in_line.to_string()
+                ]
+                .join(":")
+                .to_string(),
+                None => self.debug.file_path.clone(),
+            },
         )
     }
 }
 
 impl PartialEq for StacktraceEntry {
     fn eq(&self, other: &Self) -> bool {
+        if self.debug.offset_in_file.is_some() && other.debug.offset_in_file.is_some() {
+            return self.debug == other.debug;
+        }
         match &self.module {
             ModuleInfo::Name(_) => self.address == other.address,
             ModuleInfo::File(file1) => {
@@ -258,6 +282,12 @@ impl Eq for StacktraceEntry {}
 
 impl Hash for StacktraceEntry {
     fn hash<H: Hasher>(&self, state: &mut H) {
+        if let Some(oif) = &self.debug.offset_in_file {
+            self.debug.file_path.hash(state);
+            oif.hash(state);
+            self.debug.offset_in_line.hash(state);
+            return;
+        }
         match &self.module {
             ModuleInfo::Name(_) => {
                 self.address.hash(state);
@@ -282,46 +312,131 @@ impl StacktraceEntry {
             .map(|s| s.trim().to_string())
             .collect::<Vec<String>>();
         vectrace.retain(|trace| trace != "");
-        let normname: String;
         let addr = u64::from_str_radix(
             vectrace[1].clone().drain(2..).collect::<String>().as_str(),
             16,
         )
         .unwrap_or(0);
-        let mut debugg = vectrace[vectrace.len() - 1].clone();
-
+        let debug_line = match vectrace.last().clone() {
+            Some(x) => x.clone().to_string(),
+            None => "".to_string(),
+        };
         let first: usize = if addr == 0 { 1 } else { 3 };
 
         // In some cases we can see '#0  0xf7fcf569 in __kernel_vsyscall ()', so, pretty good
         // technical solution below
-        if debugg == "()" {
-            if first > vectrace.len() {
-                return Err(error::Error::StacktraceParse(
-                    format!("cannot parse this line: {}", trace).to_string(),
-                ));
-            }
-            normname = vectrace
-                .clone()
-                .drain(first..vectrace.len())
-                .collect::<String>();
-            debugg = String::new();
-        } else {
-            if first > vectrace.len() - 2 {
-                return Err(error::Error::StacktraceParse(
-                    format!("cannot parse this line: {}", trace).to_string(),
-                ));
-            }
-            normname = vectrace
-                .clone()
-                .drain(first..vectrace.len() - 2)
-                .collect::<String>();
-        }
+        if debug_line == "()" {
+            let func_with_args = if first <= vectrace.len() {
+                vectrace
+                    .clone()
+                    .drain(first..vectrace.len())
+                    .collect::<String>()
+            } else {
+                String::new()
+            };
 
-        Ok(StacktraceEntry {
-            address: addr,
-            module: ModuleInfo::Name(normname),
-            debug: debugg,
-        })
+            return Ok(StacktraceEntry {
+                address: addr,
+                module: ModuleInfo::Name(func_with_args),
+                debug: DebugInfo {
+                    file_path: "".to_string(),
+                    offset_in_file: None,
+                    offset_in_line: 0 as u64,
+                },
+            });
+        } else {
+            let func_with_args = if first < vectrace.len() - 1 {
+                vectrace
+                    .clone()
+                    .drain(first..vectrace.len() - 1)
+                    .collect::<String>()
+            } else {
+                String::new()
+            };
+            // Find debug info about line and pos in line
+
+            let dentries = &[
+                // "(/path/to/bin+0x123)"
+                r"\((?P<file_path_1>[^+]+)\+0x(?P<module_offset_1>[0-9a-fA-F]+)\)",
+                // "/path:16:17"
+                r"(?P<file_path_2>[^ ]+):(?P<file_line_1>\d+):(?P<offset_in_line>\d+)",
+                // "/path:16"
+                r"(?P<file_path_3>[^ ]+):(?P<file_line_2>\d+)",
+                // "(/path/to/bin+0x123)"
+                r"\((?P<file_path_4>.*)\+0x(?P<module_offset_2>[0-9a-fA-F]+)\)$",
+                // "libc.so.6"
+                r"(?P<file_path_5>[^ ]+)$",
+            ];
+
+            let asan_re = format!("^(?:{})$", dentries.join("|"));
+
+            let asan_base =
+                Regex::new(&asan_re).expect("Regex failed to compile while asan parsing");
+
+            let asan_captures = asan_base.captures(&debug_line);
+            if let Some(captures) = &asan_captures {
+                let file_path = match captures
+                    .name("file_path_1")
+                    .or_else(|| captures.name("file_path_2"))
+                    .or_else(|| captures.name("file_path_3"))
+                    .or_else(|| captures.name("file_path_4"))
+                    .or_else(|| captures.name("file_path_5"))
+                    .map(|x| x.as_str().to_string())
+                {
+                    Some(x) => x,
+                    None => String::new(),
+                };
+
+                let mut offset_in_file = match captures
+                    .name("module_offset_1")
+                    .or_else(|| captures.name("module_offset_2"))
+                    .map(|x| x.as_str())
+                {
+                    Some(x) => Some(u64::from_str_radix(x, 16)?),
+                    None => None,
+                };
+
+                if offset_in_file.is_none() {
+                    offset_in_file = match captures
+                        .name("file_line_1")
+                        .or_else(|| captures.name("file_line_2"))
+                        .map(|x| x.as_str())
+                    {
+                        Some(x) => Some(x.parse::<u64>()?),
+                        None => None,
+                    }
+                }
+
+                let offset_in_line = match captures
+                    .name("offset_in_line")
+                    .map(|x| x.as_str().to_string())
+                {
+                    Some(x) => x.parse::<u64>()?,
+                    None => 0,
+                };
+
+                if let Some(off_in_f) = &offset_in_file {
+                    return Ok(StacktraceEntry {
+                        address: addr,
+                        module: ModuleInfo::Name(func_with_args),
+                        debug: DebugInfo {
+                            file_path: file_path,
+                            offset_in_file: Some(*off_in_f),
+                            offset_in_line: offset_in_line,
+                        },
+                    });
+                }
+            }
+            return Ok(StacktraceEntry {
+                address: addr,
+                module: ModuleInfo::Name(func_with_args),
+                debug: DebugInfo {
+                    file_path: debug_line,
+                    offset_in_file: None,
+                    offset_in_line: 0 as u64,
+                },
+            });
+        }
     }
 
     /// Method attaches 'File' struct to module information
@@ -374,17 +489,19 @@ impl Stacktrace {
     /// The return value is a vector of  'StacktraceEntry' structs
     pub fn from_gdb(trace: &str) -> error::Result<Stacktrace> {
         let mut some = Vec::<StacktraceEntry>::new();
-        let hlp = trace
+        let mut entries = trace
             .split('\n')
             .map(|s| s.trim().to_string())
             .collect::<Vec<String>>();
-        if hlp.len() < 2 {
+        entries.retain(|trace| trace != "");
+
+        if entries.len() < 1 {
             return Err(error::Error::StacktraceParse(
                 format!("cannot get stack trace from this string: {}", trace).to_string(),
             ));
         }
 
-        for x in hlp.iter() {
+        for x in entries.iter() {
             some.push(StacktraceEntry::new(&x.clone())?);
         }
         Ok(Stacktrace { strace: some })
