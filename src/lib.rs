@@ -527,6 +527,8 @@ pub mod error;
 pub enum ExecType<'a> {
     /// Run target program via `gdb` (--args) option.
     Local(&'a [&'a str]),
+    /// Run target program built with address sanitizer via `gdb` (--args) option.
+    ASan(&'a [&'a str]),
     /// Attach to process via `gdb` (-p) option.
     Remote(&'a str),
     /// Run target via `gdb` with coredump.
@@ -589,6 +591,27 @@ impl<'a> GdbCommand<'a> {
                 gdb_args.push("-ex");
                 gdb_args.push("r");
                 gdb_args.append(&mut self.args.clone());
+                gdb_args.push("-ex");
+                gdb_args.push("p \"gdb-command\"");
+                gdb_args.push("--args");
+                gdb_args.extend_from_slice(args);
+            }
+            ExecType::ASan(args) => {
+                // Check if binary exists (first element.)
+                if !Path::new(args[0]).exists() {
+                    return Err(error::Error::NoFile(args[0].to_string()));
+                }
+
+                // We need to stop execution before using gdb user options due to sanitizer abort
+                gdb_args.push("-ex");
+                gdb_args.push("b main");
+                gdb_args.push("-ex");
+                gdb_args.push("r");
+                gdb_args.append(&mut self.args.clone());
+                gdb_args.push("-ex");
+                gdb_args.push("c");
+                gdb_args.push("-ex");
+                gdb_args.push("p \"gdb-command\"");
                 gdb_args.push("--args");
                 gdb_args.extend_from_slice(args);
             }
@@ -614,9 +637,10 @@ impl<'a> GdbCommand<'a> {
         }
 
         // Run gdb and get output
-        let output = gdb.args(&gdb_args).output()?;
+        let mut output = gdb.args(&gdb_args).output()?;
         if output.status.success() {
-            Ok(output.stdout.clone())
+            output.stdout.append(&mut output.stderr.clone());
+            Ok(output.stdout)
         } else {
             Err(error::Error::ExitCode(output.status.code().unwrap()))
         }
@@ -655,6 +679,11 @@ impl<'a> GdbCommand<'a> {
     /// Add command to get process status
     pub fn status(&mut self) -> &'a mut GdbCommand {
         self.ex("info proc status")
+    }
+
+    /// Add command to get info
+    pub fn sources(&mut self) -> &'a mut GdbCommand {
+        self.ex("info sources")
     }
 
     /// Execute gdb and get result for each command.
