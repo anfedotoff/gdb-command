@@ -527,8 +527,8 @@ pub mod error;
 pub enum ExecType<'a> {
     /// Run target program via `gdb` (--args) option.
     Local(&'a [&'a str]),
-    /// Run target program via `gdb` (--args) option with sanitizers.
-    LocalSan(&'a [&'a str]),
+    /// Run target program built with address sanitizer via `gdb` (--args) option.
+    ASan(&'a [&'a str]),
     /// Attach to process via `gdb` (-p) option.
     Remote(&'a str),
     /// Run target via `gdb` with coredump.
@@ -596,12 +596,13 @@ impl<'a> GdbCommand<'a> {
                 gdb_args.push("--args");
                 gdb_args.extend_from_slice(args);
             }
-            ExecType::LocalSan(args) => {
+            ExecType::ASan(args) => {
                 // Check if binary exists (first element.)
                 if !Path::new(args[0]).exists() {
                     return Err(error::Error::NoFile(args[0].to_string()));
                 }
 
+                // We need to stop execution before using gdb user options due to sanitizer abort
                 gdb_args.push("-ex");
                 gdb_args.push("b main");
                 gdb_args.push("-ex");
