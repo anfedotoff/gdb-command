@@ -1,6 +1,6 @@
 [package]
 name = "gdb-command"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["fedotoff <fedotoff@ispras.ru>"]
 edition = "2018"
 description = "Wrapper for gdb in batch mode."
