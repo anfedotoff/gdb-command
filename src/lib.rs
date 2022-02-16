@@ -47,10 +47,8 @@
 use regex::Regex;
 use std::fmt;
 use std::hash::{Hash, Hasher};
-use std::os::unix::io::AsRawFd;
-use std::os::unix::io::FromRawFd;
 use std::path::Path;
-use std::process::{Command, Stdio};
+use std::process::Command;
 
 /// `File` struct represents unit (segment) in proccess address space.
 #[derive(Clone, Default, Debug)]
