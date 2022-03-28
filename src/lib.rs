@@ -611,6 +611,10 @@ impl<'a> GdbCommand<'a> {
                 gdb_args.push("-ex");
                 gdb_args.push("c");
                 gdb_args.push("-ex");
+
+                // if we had a segfault we need to continue program running to get ASan report
+                gdb_args.push("c");
+                gdb_args.push("-ex");
                 gdb_args.push("p \"gdb-command\"");
                 gdb_args.push("--args");
                 gdb_args.extend_from_slice(args);
