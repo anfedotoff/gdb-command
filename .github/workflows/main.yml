@@ -19,7 +19,7 @@ jobs:
       run: cargo build --verbose
     - name: Run tests
       run: |
-        sudo apt install gdb
+        sudo apt update && sudo apt install -y gdb
         cargo test --verbose
         cargo test test_core_safe_func --verbose -- --ignored
         cargo test test_core_canary --verbose -- --ignored
