@@ -49,6 +49,7 @@ use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::path::Path;
 use std::process::Command;
+use std::path::PathBuf;
 
 /// `File` struct represents unit (segment) in proccess address space.
 #[derive(Clone, Default, Debug)]
@@ -542,6 +543,8 @@ pub struct GdbCommand<'a> {
     exec_type: ExecType<'a>,
     /// Execution parameters (-ex).
     args: Vec<&'a str>,
+    /// Stdin file
+    stdin: PathBuf,
 }
 
 impl<'a> GdbCommand<'a> {
@@ -553,7 +556,13 @@ impl<'a> GdbCommand<'a> {
         GdbCommand {
             exec_type: exec_type.clone(),
             args: Vec::new(),
+            stdin: PathBuf::new(),
         }
+    }
+
+    pub fn set_stdin(&mut self, file: &'a PathBuf) -> &'a mut GdbCommand {
+        self.stdin = file.clone();
+        self
     }
 
     /// Add new gdb command to execute.
