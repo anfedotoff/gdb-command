@@ -48,8 +48,8 @@ use regex::Regex;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::path::Path;
-use std::path::PathBuf;
 use std::process::Command;
+use std::path::PathBuf;
 
 /// `File` struct represents unit (segment) in proccess address space.
 #[derive(Clone, Default, Debug)]
@@ -560,8 +560,8 @@ impl<'a> GdbCommand<'a> {
         }
     }
 
-    pub fn set_stdin(&mut self, file: &'a PathBuf) {
-        self.stdin = Some(file);
+    pub fn set_stdin(&mut self, file: Option<&'a PathBuf>){
+        self.stdin = file;
     }
 
     /// Add new gdb command to execute.
@@ -587,7 +587,7 @@ impl<'a> GdbCommand<'a> {
         gdb_args.push("set backtrace limit 2000");
         gdb_args.push("-ex");
         gdb_args.push("set disassembly-flavor intel");
-
+        
         // Create run command
         let run_command = if let Some(stdin) = self.stdin {
             format!("r < {}", stdin.display())
