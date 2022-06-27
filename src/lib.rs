@@ -48,8 +48,8 @@ use regex::Regex;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::path::Path;
-use std::process::Command;
 use std::path::PathBuf;
+use std::process::Command;
 
 /// `File` struct represents unit (segment) in proccess address space.
 #[derive(Clone, Default, Debug)]
@@ -544,7 +544,7 @@ pub struct GdbCommand<'a> {
     /// Execution parameters (-ex).
     args: Vec<&'a str>,
     /// Stdin file
-    stdin: PathBuf,
+    stdin: Option<&'a PathBuf>,
 }
 
 impl<'a> GdbCommand<'a> {
@@ -556,13 +556,12 @@ impl<'a> GdbCommand<'a> {
         GdbCommand {
             exec_type: exec_type.clone(),
             args: Vec::new(),
-            stdin: PathBuf::new(),
+            stdin: None,
         }
     }
 
-    pub fn set_stdin(&mut self, file: &'a PathBuf) -> &'a mut GdbCommand {
-        self.stdin = file.clone();
-        self
+    pub fn set_stdin(&mut self, file: &'a PathBuf) {
+        self.stdin = Some(file);
     }
 
     /// Add new gdb command to execute.
@@ -589,6 +588,13 @@ impl<'a> GdbCommand<'a> {
         gdb_args.push("-ex");
         gdb_args.push("set disassembly-flavor intel");
 
+        // Create run command
+        let run_command = if let Some(stdin) = self.stdin {
+            format!("r < {}", stdin.display())
+        } else {
+            "r".to_string()
+        };
+
         // Add parameters according to execution
         match &self.exec_type {
             ExecType::Local(args) => {
@@ -598,7 +604,7 @@ impl<'a> GdbCommand<'a> {
                 }
 
                 gdb_args.push("-ex");
-                gdb_args.push("r");
+                gdb_args.push(run_command.as_str());
                 gdb_args.append(&mut self.args.clone());
                 gdb_args.push("-ex");
                 gdb_args.push("p \"gdb-command\"");
@@ -615,7 +621,7 @@ impl<'a> GdbCommand<'a> {
                 gdb_args.push("-ex");
                 gdb_args.push("b main");
                 gdb_args.push("-ex");
-                gdb_args.push("r");
+                gdb_args.push(run_command.as_str());
                 gdb_args.append(&mut self.args.clone());
                 gdb_args.push("-ex");
                 gdb_args.push("c");
