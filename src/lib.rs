@@ -560,8 +560,9 @@ impl<'a> GdbCommand<'a> {
         }
     }
 
-    pub fn set_stdin(&mut self, file: Option<&'a PathBuf>){
+    pub fn set_stdin(&mut self, file: Option<&'a PathBuf>) -> &'a mut GdbCommand {
         self.stdin = file;
+        self
     }
 
     /// Add new gdb command to execute.
