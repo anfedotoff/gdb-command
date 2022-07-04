@@ -21,7 +21,5 @@ jobs:
       run: |
         sudo apt update && sudo apt install -y gdb
         cargo test --verbose
-        cargo test test_core_safe_func --verbose -- --ignored
-        cargo test test_core_canary --verbose -- --ignored
     - name: Code Style
       run: cargo fmt -- --check
