@@ -560,6 +560,10 @@ impl<'a> GdbCommand<'a> {
         }
     }
 
+    /// Add stdin for executable
+    /// # Arguments
+    ///
+    /// * `file` - path to stdin file
     pub fn stdin(&mut self, file: Option<&'a PathBuf>) -> &'a mut GdbCommand {
         self.stdin = file;
         self
