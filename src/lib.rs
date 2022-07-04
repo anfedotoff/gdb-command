@@ -48,6 +48,7 @@ use regex::Regex;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::path::Path;
+use std::path::PathBuf;
 use std::process::Command;
 
 /// `File` struct represents unit (segment) in proccess address space.
@@ -542,6 +543,8 @@ pub struct GdbCommand<'a> {
     exec_type: ExecType<'a>,
     /// Execution parameters (-ex).
     args: Vec<&'a str>,
+    /// Stdin file
+    stdin: Option<&'a PathBuf>,
 }
 
 impl<'a> GdbCommand<'a> {
@@ -553,7 +556,17 @@ impl<'a> GdbCommand<'a> {
         GdbCommand {
             exec_type: exec_type.clone(),
             args: Vec::new(),
+            stdin: None,
         }
+    }
+
+    /// Add stdin for executable
+    /// # Arguments
+    ///
+    /// * `file` - path to stdin file
+    pub fn stdin(&mut self, file: Option<&'a PathBuf>) -> &'a mut GdbCommand {
+        self.stdin = file;
+        self
     }
 
     /// Add new gdb command to execute.
@@ -580,6 +593,13 @@ impl<'a> GdbCommand<'a> {
         gdb_args.push("-ex");
         gdb_args.push("set disassembly-flavor intel");
 
+        // Create run command
+        let run_command = if let Some(stdin) = self.stdin {
+            format!("r < {}", stdin.display())
+        } else {
+            "r".to_string()
+        };
+
         // Add parameters according to execution
         match &self.exec_type {
             ExecType::Local(args) => {
@@ -589,7 +609,7 @@ impl<'a> GdbCommand<'a> {
                 }
 
                 gdb_args.push("-ex");
-                gdb_args.push("r");
+                gdb_args.push(run_command.as_str());
                 gdb_args.append(&mut self.args.clone());
                 gdb_args.push("-ex");
                 gdb_args.push("p \"gdb-command\"");
@@ -606,7 +626,7 @@ impl<'a> GdbCommand<'a> {
                 gdb_args.push("-ex");
                 gdb_args.push("b main");
                 gdb_args.push("-ex");
-                gdb_args.push("r");
+                gdb_args.push(run_command.as_str());
                 gdb_args.append(&mut self.args.clone());
                 gdb_args.push("-ex");
                 gdb_args.push("c");
