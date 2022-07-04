@@ -48,8 +48,8 @@ use regex::Regex;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::path::Path;
-use std::process::Command;
 use std::path::PathBuf;
+use std::process::Command;
 
 /// `File` struct represents unit (segment) in proccess address space.
 #[derive(Clone, Default, Debug)]
@@ -588,7 +588,7 @@ impl<'a> GdbCommand<'a> {
         gdb_args.push("set backtrace limit 2000");
         gdb_args.push("-ex");
         gdb_args.push("set disassembly-flavor intel");
-        
+
         // Create run command
         let run_command = if let Some(stdin) = self.stdin {
             format!("r < {}", stdin.display())
