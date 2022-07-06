@@ -569,16 +569,6 @@ impl<'a> GdbCommand<'a> {
         self
     }
 
-    /// Add new gdb command to execute without parsing output.
-    /// # Arguments
-    ///
-    /// * `cmd` - gdb command parameter (-ex).
-    pub fn fex(&mut self, cmd: &'a str) -> &'a mut GdbCommand {
-        self.args.push("-ex");
-        self.args.push(cmd);
-        self
-    }
-
     /// Add new gdb command to execute.
     /// # Arguments
     ///
@@ -692,6 +682,13 @@ impl<'a> GdbCommand<'a> {
     pub fn r(&mut self) -> &'a mut GdbCommand {
         self.args.push("-ex");
         self.args.push("r");
+        self
+    }
+
+    /// Add command to continue execution
+    pub fn c(&mut self) -> &'a mut GdbCommand {
+        self.args.push("-ex");
+        self.args.push("c");
         self
     }
 
