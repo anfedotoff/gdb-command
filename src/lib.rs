@@ -569,6 +569,16 @@ impl<'a> GdbCommand<'a> {
         self
     }
 
+    /// Add new gdb command to execute without parsing output.
+    /// # Arguments
+    ///
+    /// * `cmd` - gdb command parameter (-ex).
+    pub fn fex(&mut self, cmd: &'a str) -> &'a mut GdbCommand {
+        self.args.push("-ex");
+        self.args.push(cmd);
+        self
+    }
+
     /// Add new gdb command to execute.
     /// # Arguments
     ///
@@ -608,12 +618,16 @@ impl<'a> GdbCommand<'a> {
                     return Err(error::Error::NoFile(args[0].to_string()));
                 }
 
-                gdb_args.push("-ex");
-                gdb_args.push(run_command.as_str());
                 gdb_args.append(&mut self.args.clone());
                 gdb_args.push("-ex");
                 gdb_args.push("p \"gdb-command\"");
                 gdb_args.push("--args");
+                if let Some(pos) = gdb_args.iter().position(|&x| x == "r") {
+                    gdb_args[pos] = run_command.as_str();
+                } else {
+                    gdb_args.insert(5, run_command.as_str());
+                    gdb_args.insert(5, "-ex");
+                }
                 gdb_args.extend_from_slice(args);
             }
             ExecType::ASan(args) => {
@@ -625,8 +639,6 @@ impl<'a> GdbCommand<'a> {
                 // We need to stop execution before using gdb user options due to sanitizer abort
                 gdb_args.push("-ex");
                 gdb_args.push("b main");
-                gdb_args.push("-ex");
-                gdb_args.push(run_command.as_str());
                 gdb_args.append(&mut self.args.clone());
                 gdb_args.push("-ex");
                 gdb_args.push("c");
@@ -637,6 +649,12 @@ impl<'a> GdbCommand<'a> {
                 gdb_args.push("-ex");
                 gdb_args.push("p \"gdb-command\"");
                 gdb_args.push("--args");
+                if let Some(pos) = gdb_args.iter().position(|&x| x == "r") {
+                    gdb_args[pos] = run_command.as_str();
+                } else {
+                    gdb_args.insert(8, run_command.as_str());
+                    gdb_args.insert(8, "-ex");
+                }
                 gdb_args.extend_from_slice(args);
             }
             ExecType::Remote(pid) => {
@@ -668,6 +686,13 @@ impl<'a> GdbCommand<'a> {
         } else {
             Err(error::Error::ExitCode(output.status.code().unwrap()))
         }
+    }
+
+    /// Add command to run program
+    pub fn r(&mut self) -> &'a mut GdbCommand {
+        self.args.push("-ex");
+        self.args.push("r");
+        self
     }
 
     /// Add command to get backtrace (-ex bt)
