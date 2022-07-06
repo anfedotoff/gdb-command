@@ -642,8 +642,8 @@ impl<'a> GdbCommand<'a> {
                 if let Some(pos) = gdb_args.iter().position(|&x| x == "r") {
                     gdb_args[pos] = run_command.as_str();
                 } else {
-                    gdb_args.insert(8, run_command.as_str());
-                    gdb_args.insert(8, "-ex");
+                    gdb_args.insert(7, run_command.as_str());
+                    gdb_args.insert(7, "-ex");
                 }
                 gdb_args.extend_from_slice(args);
             }
