@@ -670,12 +670,8 @@ impl<'a> GdbCommand<'a> {
 
         // Run gdb and get output
         let mut output = gdb.args(&gdb_args).output()?;
-        if output.status.success() {
-            output.stdout.append(&mut output.stderr.clone());
-            Ok(output.stdout)
-        } else {
-            Err(error::Error::ExitCode(output.status.code().unwrap()))
-        }
+        output.stdout.append(&mut output.stderr.clone());
+        Ok(output.stdout)
     }
 
     /// Add command to run program
