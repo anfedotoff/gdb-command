@@ -45,6 +45,28 @@ fn test_local_safe_func() {
 }
 
 #[test]
+fn test_local_sources_stdin() {
+    let mut args = Vec::new();
+    let bin = abs_path("tests/bins/test_asan_stdin");
+    let input = abs_path("tests/bins/input");
+    let input_buf = std::path::PathBuf::from(&input);
+    args.push(bin.as_str());
+    args.push(input.as_str());
+    let result = GdbCommand::new(&ExecType::Local(&args))
+        .stdin(Some(&input_buf))
+        .bmain()
+        .r()
+        .sources()
+        .c()
+        .run();
+    if result.is_err() {
+        assert!(false, "{}", result.err().unwrap());
+    }
+    let result = result.unwrap();
+    assert_eq!(result[0].contains("test_asan.c"), true);
+}
+
+#[test]
 fn test_struct_mapped_files() {
     let bin = abs_path("tests/bins/test_abort");
     let result = GdbCommand::new(&ExecType::Local(&[&bin, "A"]))
