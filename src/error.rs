@@ -10,8 +10,6 @@ use std::{error, io};
 pub enum Error {
     /// Gdb output parsing error
     ParseOutput(String),
-    /// Gdb exit status error
-    ExitCode(i32),
     /// No executable/core found to run under gdb.
     NoFile(String),
     /// An IO based error
@@ -31,7 +29,6 @@ impl error::Error for Error {
             Error::IntParse(ref pr) => Some(pr),
             Error::ParseOutput(_) => None,
             Error::NoFile(_) => None,
-            Error::ExitCode(_) => None,
             Error::StacktraceParse(_) => None,
             Error::MappedFilesParse(_) => None,
         }
@@ -55,7 +52,6 @@ impl fmt::Display for Error {
         match *self {
             Error::IO(ref err) => write!(fmt, "{}", err),
             Error::IntParse(ref err) => write!(fmt, "{}", err),
-            Error::ExitCode(code) => write!(fmt, "Gdb finished with exit code:{}", code),
             Error::ParseOutput(ref msg) => write!(fmt, "Gdb parsing output error: {}", msg),
             Error::NoFile(ref msg) => write!(fmt, "File not found: {}", msg),
             Error::StacktraceParse(ref msg) => write!(fmt, "Error parsing stack trace: {}", msg),

@@ -80,7 +80,7 @@ impl File {
     pub fn new(base: u64, end: u64, offset: u64, fname: &str) -> Self {
         File {
             base_address: base,
-            end: end,
+            end,
             offset_in_file: offset,
             name: String::from(fname),
         }
@@ -97,7 +97,7 @@ impl fmt::Display for File {
     }
 }
 
-///`MappedFiles` all mapped files in proccess.
+///`MappedFiles` all mapped files in process.
 #[derive(Clone, Debug)]
 pub struct MappedFiles {
     /// Vector of mapped files
@@ -421,9 +421,9 @@ impl StacktraceEntry {
                         address: addr,
                         module: ModuleInfo::Name(func_with_args),
                         debug: DebugInfo {
-                            file_path: file_path,
+                            file_path,
                             offset_in_file: Some(*off_in_f),
-                            offset_in_line: offset_in_line,
+                            offset_in_line,
                         },
                     });
                 }
@@ -528,8 +528,6 @@ pub mod error;
 pub enum ExecType<'a> {
     /// Run target program via `gdb` (--args) option.
     Local(&'a [&'a str]),
-    /// Run target program built with address sanitizer via `gdb` (--args) option.
-    ASan(&'a [&'a str]),
     /// Attach to process via `gdb` (-p) option.
     Remote(&'a str),
     /// Run target via `gdb` with coredump.
@@ -620,33 +618,6 @@ impl<'a> GdbCommand<'a> {
                 }
                 gdb_args.extend_from_slice(args);
             }
-            ExecType::ASan(args) => {
-                // Check if binary exists (first element.)
-                if !Path::new(args[0]).exists() {
-                    return Err(error::Error::NoFile(args[0].to_string()));
-                }
-
-                // We need to stop execution before using gdb user options due to sanitizer abort
-                gdb_args.push("-ex");
-                gdb_args.push("b main");
-                gdb_args.append(&mut self.args.clone());
-                gdb_args.push("-ex");
-                gdb_args.push("c");
-                gdb_args.push("-ex");
-
-                // if we had a segfault we need to continue program running to get ASan report
-                gdb_args.push("c");
-                gdb_args.push("-ex");
-                gdb_args.push("p \"gdb-command\"");
-                gdb_args.push("--args");
-                if let Some(pos) = gdb_args.iter().position(|&x| x == "r") {
-                    gdb_args[pos] = run_command.as_str();
-                } else {
-                    gdb_args.insert(7, run_command.as_str());
-                    gdb_args.insert(7, "-ex");
-                }
-                gdb_args.extend_from_slice(args);
-            }
             ExecType::Remote(pid) => {
                 gdb_args.push("-p");
                 gdb_args.push(pid);
@@ -726,6 +697,13 @@ impl<'a> GdbCommand<'a> {
     /// Add command to get info
     pub fn sources(&mut self) -> &'a mut GdbCommand {
         self.ex("info sources")
+    }
+
+    /// Break at main
+    pub fn bmain(&mut self) -> &'a mut GdbCommand {
+        self.args.push("-ex");
+        self.args.push("b main");
+        self
     }
 
     /// Execute gdb and get result for each command.
