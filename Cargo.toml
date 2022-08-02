@@ -1,15 +1,15 @@
 [package]
 name = "gdb-command"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["fedotoff <fedotoff@ispras.ru>"]
 edition = "2018"
 description = "Wrapper for gdb in batch mode."
 readme = "README.md"
 keywords = [ "gdb", "backtrace", "stacktrace", "debugging", "coredump"]
-repository = "https://github.com/xcoldhandsx/gdb-command.git"
-homepage = "https://github.com/xcoldhandsx/gdb-command.git"
+repository = "https://github.com/anfedotoff/gdb-command.git"
+homepage = "https://github.com/anfedotoff/gdb-command.git"
 license = "MIT"
-exclude = ["/tests"]
+exclude = ["/tests", ".gitignore", ".github"]
 
 [dependencies]
 regex = "1.5.4"
