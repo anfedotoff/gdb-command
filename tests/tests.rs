@@ -64,6 +64,10 @@ fn test_local_sources_stdin() {
     }
     let result = result.unwrap();
     assert_eq!(result[0].contains("test_asan.c"), true);
+    assert_eq!(
+        result[1].contains("ERROR: AddressSanitizer: stack-buffer-overflow"),
+        true
+    );
 }
 
 #[test]
