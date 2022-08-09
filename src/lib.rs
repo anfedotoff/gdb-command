@@ -16,13 +16,13 @@
 //!
 //! fn main () -> error::Result<()> {
 //!     // Get stacktrace from running program (stopped at crash)
-//!     let result = GdbCommand::new(&ExecType::Local(&["tests/bins/test_abort", "A"])).bt().run()?;
+//!     let result = GdbCommand::new(&ExecType::Local(&["tests/bins/test_abort", "A"])).r().bt().launch()?;
 //!
 //!     // Get stacktrace from core
 //!     let result = GdbCommand::new(
 //!             &ExecType::Core {target: "tests/bins/test_canary",
 //!                 core: "tests/bins/core.test_canary"})
-//!         .bt().run()?;
+//!         .bt().launch()?;
 //!
 //!     // Get info from remote attach to process
 //!     let mut child = Command::new("tests/bins/test_callstack_remote")
@@ -36,7 +36,7 @@
 //!         .bt()
 //!         .regs()
 //!         .disassembly()
-//!         .run();
+//!         .launch();
 //!     child.kill().unwrap();
 //!
 //!     Ok(())
@@ -540,9 +540,11 @@ pub struct GdbCommand<'a> {
     /// Gdb execution type.
     exec_type: ExecType<'a>,
     /// Execution parameters (-ex).
-    args: Vec<&'a str>,
+    args: Vec<String>,
     /// Stdin file
     stdin: Option<&'a PathBuf>,
+    /// Commands to execute for result.
+    commands_cnt: usize,
 }
 
 impl<'a> GdbCommand<'a> {
@@ -555,10 +557,12 @@ impl<'a> GdbCommand<'a> {
             exec_type: exec_type.clone(),
             args: Vec::new(),
             stdin: None,
+            commands_cnt: 0,
         }
     }
 
-    /// Add stdin for executable
+    /// Add stdin for executable.
+    /// You should call this method before using `r` method.
     /// # Arguments
     ///
     /// * `file` - path to stdin file
@@ -572,10 +576,15 @@ impl<'a> GdbCommand<'a> {
     ///
     /// * `cmd` - gdb command parameter (-ex).
     pub fn ex(&mut self, cmd: &'a str) -> &'a mut GdbCommand {
-        self.args.push("-ex");
-        self.args.push("p \"gdb-command\"");
-        self.args.push("-ex");
-        self.args.push(cmd);
+        self.args.push("-ex".to_string());
+        self.args
+            .push(format!("p \"gdb-command-start-{}\"", self.commands_cnt));
+        self.args.push("-ex".to_string());
+        self.args.push(cmd.to_string());
+        self.args.push("-ex".to_string());
+        self.args
+            .push(format!("p \"gdb-command-end-{}\"", self.commands_cnt));
+        self.commands_cnt += 1;
         self
     }
 
@@ -585,18 +594,11 @@ impl<'a> GdbCommand<'a> {
         let mut gdb_args = Vec::new();
 
         // Set quiet mode and confirm off
-        gdb_args.push("--batch");
-        gdb_args.push("-ex");
-        gdb_args.push("set backtrace limit 2000");
-        gdb_args.push("-ex");
-        gdb_args.push("set disassembly-flavor intel");
-
-        // Create run command
-        let run_command = if let Some(stdin) = self.stdin {
-            format!("r < {}", stdin.display())
-        } else {
-            "r".to_string()
-        };
+        gdb_args.push("--batch".to_string());
+        gdb_args.push("-ex".to_string());
+        gdb_args.push("set backtrace limit 2000".to_string());
+        gdb_args.push("-ex".to_string());
+        gdb_args.push("set disassembly-flavor intel".to_string());
 
         // Add parameters according to execution
         match &self.exec_type {
@@ -607,20 +609,12 @@ impl<'a> GdbCommand<'a> {
                 }
 
                 gdb_args.append(&mut self.args.clone());
-                gdb_args.push("-ex");
-                gdb_args.push("p \"gdb-command\"");
-                gdb_args.push("--args");
-                if let Some(pos) = gdb_args.iter().position(|&x| x == "r") {
-                    gdb_args[pos] = run_command.as_str();
-                } else {
-                    gdb_args.insert(5, run_command.as_str());
-                    gdb_args.insert(5, "-ex");
-                }
-                gdb_args.extend_from_slice(args);
+                gdb_args.push("--args".to_string());
+                args.iter().for_each(|a| gdb_args.push(a.to_string()));
             }
             ExecType::Remote(pid) => {
-                gdb_args.push("-p");
-                gdb_args.push(pid);
+                gdb_args.push("-p".to_string());
+                gdb_args.push(pid.to_string());
                 gdb_args.append(&mut self.args.clone());
             }
             ExecType::Core { target, core } => {
@@ -634,8 +628,8 @@ impl<'a> GdbCommand<'a> {
                     return Err(error::Error::NoFile(core.to_string()));
                 }
                 gdb_args.append(&mut self.args.clone());
-                gdb_args.push(&target);
-                gdb_args.push(&core);
+                gdb_args.push(target.to_string());
+                gdb_args.push(core.to_string());
             }
         }
 
@@ -646,16 +640,24 @@ impl<'a> GdbCommand<'a> {
     }
 
     /// Add command to run program
+    /// # Arguments
+    ///
+    /// * `file` - path to stdin file
     pub fn r(&mut self) -> &'a mut GdbCommand {
-        self.args.push("-ex");
-        self.args.push("r");
+        self.args.push("-ex".to_string());
+        let run_command = if let Some(stdin) = self.stdin {
+            format!("r < {}", stdin.display())
+        } else {
+            "r".to_string()
+        };
+        self.args.push(run_command);
         self
     }
 
     /// Add command to continue execution
     pub fn c(&mut self) -> &'a mut GdbCommand {
-        self.args.push("-ex");
-        self.args.push("c");
+        self.args.push("-ex".to_string());
+        self.args.push("c".to_string());
         self
     }
 
@@ -701,8 +703,8 @@ impl<'a> GdbCommand<'a> {
 
     /// Break at main
     pub fn bmain(&mut self) -> &'a mut GdbCommand {
-        self.args.push("-ex");
-        self.args.push("b main");
+        self.args.push("-ex".to_string());
+        self.args.push("b main".to_string());
         self
     }
 
@@ -710,15 +712,38 @@ impl<'a> GdbCommand<'a> {
     /// # Return value.
     ///
     /// The return value is a vector of strings for each command executed.
-    pub fn run(&self) -> error::Result<Vec<String>> {
+    pub fn launch(&self) -> error::Result<Vec<String>> {
+        // Get raw output from Gdb.
         let stdout = self.raw()?;
+
+        // Split stdout into lines.
         let output = String::from_utf8(stdout).unwrap();
-        let re = Regex::new(r#"(?m)^\$\d+\s*=\s*"gdb-command"$"#).unwrap();
-        let mut result = re
-            .split(&output)
-            .map(|s| s.trim().to_string())
-            .collect::<Vec<String>>();
-        result.remove(0);
-        Ok(result)
+        let lines: Vec<String> = output.split('\n').map(|l| l.to_string()).collect();
+
+        // Create empty results for each command.
+        let mut results = Vec::new();
+        (0..self.commands_cnt).for_each(|_| results.push(String::new()));
+
+        let re_start = Regex::new(r#"^\$\d+\s*=\s*"gdb-command-start-(\d+)"$"#).unwrap();
+        let re_end = Regex::new(r#"^\$\d+\s*=\s*"gdb-command-end-(\d+)"$"#).unwrap();
+        let mut start = 0;
+        let mut cmd_idx = 0;
+        for (i, line) in lines.iter().enumerate() {
+            // Find gdb-commnad-start guard and save command index.
+            if let Some(caps) = re_start.captures(&line) {
+                cmd_idx = caps.get(1).unwrap().as_str().parse::<usize>().unwrap();
+                start = i;
+            }
+
+            // Find gdb-commnad-end guard.
+            if let Some(caps) = re_end.captures(&line) {
+                let end_idx = caps.get(1).unwrap().as_str().parse::<usize>().unwrap();
+                // Check if gdb-commnad-end guard matches start guard.
+                if end_idx == cmd_idx {
+                    results[cmd_idx] = lines[start + 1..i].join("\n");
+                }
+            }
+        }
+        Ok(results)
     }
 }
