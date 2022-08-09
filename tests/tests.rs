@@ -223,8 +223,7 @@ fn test_stacktrace_structs() {
 }
 
 #[test]
-#[ignore] // To run this test: If Ubuntu 20.04 just remove ignore. Other systems: recollect the core.
-fn test_core_canary() {
+fn test_core() {
     let bin = abs_path("tests/bins/test_canary");
     let core = abs_path("tests/bins/core.test_canary");
     let result = GdbCommand::new(&ExecType::Core {
@@ -237,25 +236,7 @@ fn test_core_canary() {
         assert!(false, "{}", result.err().unwrap());
     }
     let result = result.unwrap();
-    assert_eq!(result[0].contains("__stack_chk_fail"), true);
-}
-
-#[test] // To run this test: If Ubuntu 20.04 just remove ignore. Other systems: recollect the core.
-#[ignore]
-fn test_core_safe_func() {
-    let bin = abs_path("tests/bins/test_safeFunc");
-    let core = abs_path("tests/bins/core.test_safeFunc");
-    let result = GdbCommand::new(&ExecType::Core {
-        target: &bin,
-        core: &core,
-    })
-    .bt()
-    .launch();
-    if result.is_err() {
-        assert!(false, "{}", result.err().unwrap());
-    }
-    let result = result.unwrap();
-    assert_eq!(result[0].contains("__strcpy_chk"), true);
+    assert_eq!(result[0].contains("__GI_abort"), true);
 }
 
 #[test] // To run this test: echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope
