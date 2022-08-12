@@ -57,6 +57,7 @@ fn test_local_sources_stdin() {
         .bmain()
         .r()
         .sources()
+        .list("test_asan.c:18")
         .c()
         .launch();
     if result.is_err() {
@@ -64,6 +65,7 @@ fn test_local_sources_stdin() {
     }
     let result = result.unwrap();
     assert_eq!(result[0].contains("test_asan.c"), true);
+    assert_eq!(result[1].contains("buf[i++] = c;"), true);
 }
 
 #[test]
