@@ -712,6 +712,20 @@ impl<'a> GdbCommand<'a> {
         self
     }
 
+    /// List print lines from source file
+    ///
+    /// # Arguments
+    ///
+    /// * `location` - lines centered around the line specified by location.
+    /// If None then location is current line.
+    pub fn list<T: Into<Option<&'a str>>>(&mut self, location: T) -> &'a mut GdbCommand {
+        if let Some(loc) = location.into() {
+            self.ex(format!("list {}", loc))
+        } else {
+            self.ex("list")
+        }
+    }
+
     /// Execute gdb and get result for each command.
     /// # Return value.
     ///
