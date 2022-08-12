@@ -19,13 +19,13 @@ use gdb_command::*;
 
 fn main () -> error::Result<()> {
     // Get stacktrace from running program (stopped at crash)
-    let result = GdbCommand::new(&ExecType::Local(&["tests/bins/test_abort", "A"])).bt().run()?;
+    let result = GdbCommand::new(&ExecType::Local(&["tests/bins/test_abort", "A"])).r().bt().launch()?;
 
     // Get stacktrace from core
     let result = GdbCommand::new(
             &ExecType::Core {target: "tests/bins/test_canary",
                 core: "tests/bins/core.test_canary"})
-        .bt().run()?;
+        .bt().launch()?;
 
     // Get info from remote attach to process
     let mut child = Command::new("tests/bins/test_callstack_remote")
@@ -39,7 +39,7 @@ fn main () -> error::Result<()> {
         .bt()
         .regs()
         .disassembly()
-        .run();
+        .launch();
     child.kill().unwrap();
 
     Ok(())

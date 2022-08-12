@@ -21,7 +21,7 @@ fn test_local_canary() {
     let a = std::iter::repeat("A").take(200).collect::<String>();
     args.push(bin.as_str());
     args.push(a.as_str());
-    let result = GdbCommand::new(&ExecType::Local(&args)).bt().run();
+    let result = GdbCommand::new(&ExecType::Local(&args)).r().bt().launch();
     if result.is_err() {
         assert!(false, "{}", result.err().unwrap());
     }
@@ -36,7 +36,7 @@ fn test_local_safe_func() {
     let a = std::iter::repeat("A").take(200).collect::<String>();
     args.push(bin.as_str());
     args.push(a.as_str());
-    let result = GdbCommand::new(&ExecType::Local(&args)).bt().run();
+    let result = GdbCommand::new(&ExecType::Local(&args)).r().bt().launch();
     if result.is_err() {
         assert!(false, "{}", result.err().unwrap());
     }
@@ -53,29 +53,26 @@ fn test_local_sources_stdin() {
     args.push(bin.as_str());
     args.push(input.as_str());
     let result = GdbCommand::new(&ExecType::Local(&args))
-        .stdin(Some(&input_buf))
+        .stdin(&input_buf)
         .bmain()
         .r()
         .sources()
         .c()
-        .run();
+        .launch();
     if result.is_err() {
         assert!(false, "{}", result.err().unwrap());
     }
     let result = result.unwrap();
     assert_eq!(result[0].contains("test_asan.c"), true);
-    assert_eq!(
-        result[1].contains("ERROR: AddressSanitizer: stack-buffer-overflow"),
-        true
-    );
 }
 
 #[test]
 fn test_struct_mapped_files() {
     let bin = abs_path("tests/bins/test_abort");
     let result = GdbCommand::new(&ExecType::Local(&[&bin, "A"]))
+        .r()
         .mappings()
-        .run();
+        .launch();
     if result.is_err() {
         assert!(false, "{}", result.err().unwrap());
     }
@@ -130,9 +127,10 @@ fn test_struct_mapped_files() {
 fn test_stacktrace_structs() {
     let bin = abs_path("tests/bins/test_abort");
     let result = GdbCommand::new(&ExecType::Local(&[&bin, "A"]))
+        .r()
         .bt()
         .mappings()
-        .run();
+        .launch();
     if result.is_err() {
         assert!(false, "{}", result.err().unwrap());
     }
@@ -225,8 +223,7 @@ fn test_stacktrace_structs() {
 }
 
 #[test]
-#[ignore] // To run this test: If Ubuntu 20.04 just remove ignore. Other systems: recollect the core.
-fn test_core_canary() {
+fn test_core() {
     let bin = abs_path("tests/bins/test_canary");
     let core = abs_path("tests/bins/core.test_canary");
     let result = GdbCommand::new(&ExecType::Core {
@@ -234,30 +231,12 @@ fn test_core_canary() {
         core: &core,
     })
     .bt()
-    .run();
+    .launch();
     if result.is_err() {
         assert!(false, "{}", result.err().unwrap());
     }
     let result = result.unwrap();
-    assert_eq!(result[0].contains("__stack_chk_fail"), true);
-}
-
-#[test] // To run this test: If Ubuntu 20.04 just remove ignore. Other systems: recollect the core.
-#[ignore]
-fn test_core_safe_func() {
-    let bin = abs_path("tests/bins/test_safeFunc");
-    let core = abs_path("tests/bins/core.test_safeFunc");
-    let result = GdbCommand::new(&ExecType::Core {
-        target: &bin,
-        core: &core,
-    })
-    .bt()
-    .run();
-    if result.is_err() {
-        assert!(false, "{}", result.err().unwrap());
-    }
-    let result = result.unwrap();
-    assert_eq!(result[0].contains("__strcpy_chk"), true);
+    assert_eq!(result[0].contains("__GI_abort"), true);
 }
 
 #[test] // To run this test: echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope
@@ -274,7 +253,7 @@ fn test_remote_unwind() {
 
     let result = GdbCommand::new(&ExecType::Remote(&child.id().to_string()))
         .bt()
-        .run();
+        .launch();
     if result.is_err() {
         assert!(false, "{}", result.err().unwrap());
     }
