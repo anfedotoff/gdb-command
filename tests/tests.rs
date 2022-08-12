@@ -189,6 +189,7 @@ fn test_stacktrace_structs() {
         "#3  0x00007ffff7dd5859 in __GI_abort () at /path:16",
         "#4  0x00007ffff7dd5859 /path:16",
         "#5  0x00007ffff7dd5859 in __GI_abort () at /path",
+        "#6  0x55ebfc21e12d in classes bin_dyldcache.c",
         /*#6  in libc.so.6"*/
     ]
     .join("\n")
@@ -220,6 +221,12 @@ fn test_stacktrace_structs() {
     if tracehash.len() != 1 {
         assert!(false, "Hash check fail");
     }
+
+    assert_eq!(
+        sttr.strace[11].debug.file_path,
+        "bin_dyldcache.c".to_string()
+    );
+    assert_eq!(sttr.strace[11].debug.offset_in_file, 0);
 }
 
 #[test]
