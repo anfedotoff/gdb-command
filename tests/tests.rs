@@ -226,7 +226,7 @@ fn test_stacktrace_structs() {
         sttr.strace[11].debug.file_path,
         "bin_dyldcache.c".to_string()
     );
-    assert_eq!(sttr.strace[11].debug.offset_in_file, 0);
+    assert_eq!(sttr.strace[11].debug.line, 0);
 }
 
 #[test]
