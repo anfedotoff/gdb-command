@@ -66,7 +66,7 @@ pub struct File {
 
 impl File {
     /// Returns File struct.
-    /// Constucts Mapped file from components.
+    /// Constructs Mapped file from components.
     ///
     /// # Arguments
     ///
@@ -227,9 +227,9 @@ pub struct DebugInfo {
     /// "/path"
     pub file_path: String,
     /// 123
-    pub offset_in_file: Option<u64>,
+    pub line: u64,
     /// 456
-    pub offset_in_line: u64,
+    pub column: u64,
 }
 
 impl fmt::Display for StacktraceEntry {
@@ -242,23 +242,20 @@ impl fmt::Display for StacktraceEntry {
                 ModuleInfo::Name(x) => x,
                 ModuleInfo::File(x) => x.to_string(),
             },
-            match &self.debug.offset_in_file {
-                Some(oif) => [
-                    self.debug.file_path.clone(),
-                    oif.to_string(),
-                    self.debug.offset_in_line.to_string()
-                ]
-                .join(":")
-                .to_string(),
-                None => self.debug.file_path.clone(),
-            },
+            [
+                self.debug.file_path.clone(),
+                self.debug.line.to_string(),
+                self.debug.column.to_string()
+            ]
+            .join(":")
+            .to_string(),
         )
     }
 }
 
 impl PartialEq for StacktraceEntry {
     fn eq(&self, other: &Self) -> bool {
-        if self.debug.offset_in_file.is_some() && other.debug.offset_in_file.is_some() {
+        if !self.debug.file_path.is_empty() && !other.debug.file_path.is_empty() {
             return self.debug == other.debug;
         }
         match &self.module {
@@ -284,10 +281,10 @@ impl Eq for StacktraceEntry {}
 
 impl Hash for StacktraceEntry {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        if let Some(oif) = &self.debug.offset_in_file {
+        if !self.debug.file_path.is_empty() {
             self.debug.file_path.hash(state);
-            oif.hash(state);
-            self.debug.offset_in_line.hash(state);
+            self.debug.line.hash(state);
+            self.debug.column.hash(state);
             return;
         }
         match &self.module {
@@ -343,8 +340,8 @@ impl StacktraceEntry {
                 module: ModuleInfo::Name(func_with_args),
                 debug: DebugInfo {
                     file_path: "".to_string(),
-                    offset_in_file: None,
-                    offset_in_line: 0 as u64,
+                    line: 0 as u64,
+                    column: 0 as u64,
                 },
             });
         } else {
@@ -424,8 +421,8 @@ impl StacktraceEntry {
                         module: ModuleInfo::Name(func_with_args),
                         debug: DebugInfo {
                             file_path,
-                            offset_in_file: Some(*off_in_f),
-                            offset_in_line,
+                            line: *off_in_f,
+                            column: offset_in_line,
                         },
                     });
                 }
@@ -435,8 +432,8 @@ impl StacktraceEntry {
                 module: ModuleInfo::Name(func_with_args),
                 debug: DebugInfo {
                     file_path: debug_line,
-                    offset_in_file: None,
-                    offset_in_line: 0 as u64,
+                    line: 0 as u64,
+                    column: 0 as u64,
                 },
             });
         }
