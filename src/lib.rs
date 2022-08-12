@@ -714,7 +714,7 @@ impl<'a> GdbCommand<'a> {
 
     /// List print lines from source file
     ///
-    /// #Arguments
+    /// # Arguments
     ///
     /// * `location` - lines centered around the line specified by location.
     /// If None then location is current line.

@@ -1,5 +1,7 @@
 use gdb_command::*;
+
 use std::collections::HashSet;
+use std::process::Command;
 
 /// Returns an absolute path for relative path.
 fn abs_path<'a>(rpath: &'a str) -> String {
@@ -47,25 +49,36 @@ fn test_local_safe_func() {
 #[test]
 fn test_local_sources_stdin() {
     let mut args = Vec::new();
-    let bin = abs_path("tests/bins/test_asan_stdin");
+    let src = abs_path("tests/src/test.c");
     let input = abs_path("tests/bins/input");
+
+    let status = Command::new("bash")
+        .arg("-c")
+        .arg(format!("gcc -g -c {} -o /tmp/test_local_sources", src))
+        .status()
+        .expect("failed to execute gcc");
+
+    assert!(status.success());
+
     let input_buf = std::path::PathBuf::from(&input);
-    args.push(bin.as_str());
+    args.push("/tmp/test_local_sources");
     args.push(input.as_str());
     let result = GdbCommand::new(&ExecType::Local(&args))
         .stdin(&input_buf)
         .bmain()
         .r()
         .sources()
-        .list("test_asan.c:18")
+        .list("test.c:18")
         .c()
         .launch();
     if result.is_err() {
         assert!(false, "{}", result.err().unwrap());
     }
     let result = result.unwrap();
-    assert_eq!(result[0].contains("test_asan.c"), true);
+    assert_eq!(result[0].contains("test.c"), true);
     assert_eq!(result[1].contains("buf[i++] = c;"), true);
+
+    let _ = std::fs::remove_file("/tmp/test_local_sources");
 }
 
 #[test]
