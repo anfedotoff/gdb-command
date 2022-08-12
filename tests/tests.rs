@@ -53,7 +53,7 @@ fn test_local_sources_stdin() {
     args.push(bin.as_str());
     args.push(input.as_str());
     let result = GdbCommand::new(&ExecType::Local(&args))
-        .stdin(Some(&input_buf))
+        .stdin(&input_buf)
         .bmain()
         .r()
         .sources()

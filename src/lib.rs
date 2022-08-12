@@ -126,21 +126,22 @@ impl MappedFiles {
     /// # Arguments
     ///
     /// * 'mapping' - gdb output string with mapped files
-    pub fn from_gdb(mapping: &str) -> error::Result<MappedFiles> {
+    pub fn from_gdb<T: AsRef<str>>(mapping: T) -> error::Result<MappedFiles> {
         let mut hlp = mapping
+            .as_ref()
             .split('\n')
             .map(|s| s.trim().to_string())
             .collect::<Vec<String>>();
         if hlp.len() < 6 {
             return Err(error::Error::MappedFilesParse(
-                format!("cannot parse this string: {}", mapping).to_string(),
+                format!("cannot parse this string: {}", mapping.as_ref()).to_string(),
             ));
         }
 
         let pos = hlp.iter().position(|x| x.contains("Start Addr"));
         if pos.is_none() {
             return Err(error::Error::MappedFilesParse(
-                format!("cannot parse this string: {}", mapping).to_string(),
+                format!("cannot parse this string: {}", mapping.as_ref()).to_string(),
             ));
         }
         hlp.drain(0..pos.unwrap() + 1);
@@ -155,7 +156,7 @@ impl MappedFiles {
             filevec.retain(|x| x != "");
             if filevec.len() < 4 {
                 return Err(error::Error::MappedFilesParse(
-                    format!("cannot parse this string: {}", mapping).to_string(),
+                    format!("cannot parse this string: {}", mapping.as_ref()).to_string(),
                 ));
             }
             let hlp = File {
@@ -307,8 +308,9 @@ impl StacktraceEntry {
     /// # Arguments
     ///
     /// * 'trace' - one line of stacktrace from gdb
-    pub fn new(trace: &str) -> error::Result<StacktraceEntry> {
+    pub fn new<T: AsRef<str>>(trace: T) -> error::Result<StacktraceEntry> {
         let mut vectrace = trace
+            .as_ref()
             .split(' ')
             .map(|s| s.trim().to_string())
             .collect::<Vec<String>>();
@@ -488,9 +490,10 @@ impl Stacktrace {
     /// # Return value
     ///
     /// The return value is a vector of  'StacktraceEntry' structs
-    pub fn from_gdb(trace: &str) -> error::Result<Stacktrace> {
+    pub fn from_gdb<T: AsRef<str>>(trace: T) -> error::Result<Stacktrace> {
         let mut some = Vec::<StacktraceEntry>::new();
         let mut entries = trace
+            .as_ref()
             .split('\n')
             .map(|s| s.trim().to_string())
             .collect::<Vec<String>>();
@@ -498,7 +501,11 @@ impl Stacktrace {
 
         if entries.len() < 1 {
             return Err(error::Error::StacktraceParse(
-                format!("cannot get stack trace from this string: {}", trace).to_string(),
+                format!(
+                    "cannot get stack trace from this string: {}",
+                    trace.as_ref()
+                )
+                .to_string(),
             ));
         }
 
@@ -566,8 +573,8 @@ impl<'a> GdbCommand<'a> {
     /// # Arguments
     ///
     /// * `file` - path to stdin file
-    pub fn stdin(&mut self, file: Option<&'a PathBuf>) -> &'a mut GdbCommand {
-        self.stdin = file;
+    pub fn stdin<T: Into<Option<&'a PathBuf>>>(&mut self, file: T) -> &'a mut GdbCommand {
+        self.stdin = file.into();
         self
     }
 
@@ -575,12 +582,12 @@ impl<'a> GdbCommand<'a> {
     /// # Arguments
     ///
     /// * `cmd` - gdb command parameter (-ex).
-    pub fn ex(&mut self, cmd: &'a str) -> &'a mut GdbCommand {
+    pub fn ex<T: Into<String>>(&mut self, cmd: T) -> &'a mut GdbCommand {
         self.args.push("-ex".to_string());
         self.args
             .push(format!("p \"gdb-command-start-{}\"", self.commands_cnt));
         self.args.push("-ex".to_string());
-        self.args.push(cmd.to_string());
+        self.args.push(cmd.into());
         self.args.push("-ex".to_string());
         self.args
             .push(format!("p \"gdb-command-end-{}\"", self.commands_cnt));
@@ -717,7 +724,7 @@ impl<'a> GdbCommand<'a> {
         let stdout = self.raw()?;
 
         // Split stdout into lines.
-        let output = String::from_utf8(stdout).unwrap();
+        let output = String::from_utf8_lossy(&stdout);
         let lines: Vec<String> = output.split('\n').map(|l| l.to_string()).collect();
 
         // Create empty results for each command.
@@ -739,7 +746,7 @@ impl<'a> GdbCommand<'a> {
             if let Some(caps) = re_end.captures(&line) {
                 let end_idx = caps.get(1).unwrap().as_str().parse::<usize>().unwrap();
                 // Check if gdb-commnad-end guard matches start guard.
-                if end_idx == cmd_idx {
+                if end_idx == cmd_idx && cmd_idx < self.commands_cnt {
                     results[cmd_idx] = lines[start + 1..i].join("\n");
                 }
             }
