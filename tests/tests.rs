@@ -158,11 +158,11 @@ fn test_stacktrace_structs() {
     let mut sttr = sttr.unwrap();
 
     assert_eq!(
-        result[0].contains(format!("{:x}", sttr.strace.last().unwrap().address).as_str()),
+        result[0].contains(format!("{:x}", sttr.last().unwrap().address).as_str()),
         true
     );
     assert_eq!(
-        result[0].contains(&sttr.strace.last().unwrap().debug.file_path),
+        result[0].contains(&sttr.last().unwrap().debug.file_path),
         true
     );
 
@@ -171,7 +171,7 @@ fn test_stacktrace_structs() {
     let prmap = MappedFiles::from_gdb(&result[1]).unwrap();
     sttr.update_modules(&prmap);
 
-    if let ModuleInfo::File(file) = &sttr.strace[sttr.strace.len() - 1].module {
+    if let ModuleInfo::File(file) = &sttr[sttr.len() - 1].module {
         assert_eq!(
             result[1].contains(&format!("{:x}", file.base_address).to_string()),
             true
@@ -217,31 +217,27 @@ fn test_stacktrace_structs() {
     let sttr = sttr.unwrap();
 
     // Eq check
-    assert_eq!(sttr.strace[0], sttr.strace[5]);
-    assert_eq!(sttr.strace[1] == sttr.strace[6], false);
-    assert_eq!(sttr.strace[2], sttr.strace[7]);
-    assert_eq!(sttr.strace[3], sttr.strace[8]);
-    assert_eq!(sttr.strace[4], sttr.strace[9]);
+    assert_eq!(sttr[0], sttr[5]);
+    assert_eq!(sttr[1] == sttr[6], false);
+    assert_eq!(sttr[2], sttr[7]);
+    assert_eq!(sttr[3], sttr[8]);
+    assert_eq!(sttr[4], sttr[9]);
 
     // Hash check
     let mut tracehash = HashSet::new();
 
-    tracehash.insert(Stacktrace {
-        strace: [sttr.strace[0].clone(), sttr.strace[2].clone()].to_vec(),
-    });
-    tracehash.insert(Stacktrace {
-        strace: [sttr.strace[5].clone(), sttr.strace[7].clone()].to_vec(),
-    });
+    tracehash.insert([sttr[0].clone(), sttr[2].clone()].to_vec());
+    tracehash.insert([sttr[5].clone(), sttr[7].clone()].to_vec());
 
     if tracehash.len() != 1 {
         assert!(false, "Hash check fail");
     }
 
     assert_eq!(
-        sttr.strace[11].debug.file_path,
+        sttr[11].debug.file_path,
         "bin_dyldcache.c".to_string()
     );
-    assert_eq!(sttr.strace[11].debug.line, 0);
+    assert_eq!(sttr[11].debug.line, 0);
 }
 
 #[test]
