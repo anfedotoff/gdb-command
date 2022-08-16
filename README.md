@@ -18,10 +18,10 @@ use std::time::Duration;
 use gdb_command::*;
 
 fn main () -> error::Result<()> {
-    // Get stacktrace from running program (stopped at crash)
+    // Get stack trace from running program (stopped at crash)
     let result = GdbCommand::new(&ExecType::Local(&["tests/bins/test_abort", "A"])).r().bt().launch()?;
 
-    // Get stacktrace from core
+    // Get stack trace from core
     let result = GdbCommand::new(
             &ExecType::Core {target: "tests/bins/test_canary",
                 core: "tests/bins/core.test_canary"})
