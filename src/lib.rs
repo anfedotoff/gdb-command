@@ -251,7 +251,7 @@ impl StacktraceEntry {
 
         // NOTE: the order of applying regexps is important.
         // 1. ASAN module+offset case
-        let re = Regex::new(r"^ *#[0-9]+ *0x([0-9a-f]+) *(?:in *(.+))? *\((.*)\+(0x[0-9a-f]+)\)")
+        let re = Regex::new(r"^ *#[0-9]+ *0x([0-9a-f]+) *(?:in *(.+))? *\((.*)\+0x([0-9a-f]+)\)")
             .unwrap();
         if let Some(caps) = re.captures(entry.as_ref()) {
             // Get address. Unwrap is safe.
@@ -263,8 +263,7 @@ impl StacktraceEntry {
             // Get module name.
             stentry.module = caps.get(3).unwrap().as_str().trim().to_string();
             // Get offset in module. Unwrap is safe.
-            let without_prefix = caps.get(4).unwrap().as_str().trim_start_matches("0x");
-            stentry.offset = u64::from_str_radix(without_prefix, 16).unwrap();
+            stentry.offset = u64::from_str_radix(caps.get(4).unwrap().as_str(), 16).unwrap();
 
             return Ok(stentry);
         }
@@ -319,7 +318,7 @@ impl StacktraceEntry {
             // Get function name.
             stentry.function = caps.get(2).unwrap().as_str().trim().to_string();
             // Get source file.
-            stentry.debug.file = caps.get(3).unwrap().as_str().to_string();
+            stentry.debug.file = caps.get(3).unwrap().as_str().trim().to_string();
 
             return Ok(stentry);
         }
