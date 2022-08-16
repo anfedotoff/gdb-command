@@ -1,6 +1,5 @@
 use gdb_command::*;
 
-use std::collections::HashSet;
 use std::process::Command;
 
 /// Returns an absolute path for relative path.
@@ -157,58 +156,31 @@ fn test_stacktrace_structs() {
     let prmap = MappedFiles::from_gdb(&result[1]).unwrap();
     sttr.compute_module_offsets(&prmap);
 
-    assert_eq!(
-        result[1].contains(&format!("{:x}", &sttr[sttr.len() - 1].offset).to_string()),
-        true
-    );
-    assert_eq!(
-        result[1].contains(&format!("{}", &sttr[sttr.len() - 1].module).to_string()),
-        true
-    );
+    assert_eq!(sttr[sttr.len() - 1].offset, 0x72b);
+    assert_eq!(result[1].contains(&sttr[sttr.len() - 1].module), true);
 
-    let mystacktrace = &[
-        "#0  0x1123  __GI_raise (sig=sig@entry=6) at ../sysdeps/unix/sysv/linux/raise.c:50",
-        "#1  __GI_raise (sig=sig@entry=6) at (/path/to/bin+0x123)",
-        "#2  __GI_raise () at /path:16:17",
-        "#3  __GI_raise () at /path:16",
-        "#4  (/path+0x10)",
-        "#0  0x00007ffff7dd5859 in __GI_abort ()  at ../sysdeps/unix/sysv/linux/raise.c:50",
-        "#1  0x00007ffff7dd5859 in __GI_abort () at (/path/to/bin+0x122)",
-        "#2  0x00007ffff7dd5859 in __GI_abort () /path:16:17",
-        "#3  0x00007ffff7dd5859 in __GI_abort () at /path:16",
-        "#4  0x00007ffff7dd5859 /path:16",
-        "#5  0x00007ffff7dd5859 in __GI_abort () at /path",
-        "#6  0x55ebfc21e12d in classes bin_dyldcache.c",
-        /*#6  in libc.so.6"*/
-    ]
-    .join("\n")
-    .to_string();
+    let raw_stacktrace = &[ "#10 0x55ebfbfa0707 (/home/madrat/Desktop/fuzz-targets/rz-installation-libfuzzer-asan/bin/rz-fuzz+0xfe2707) (BuildId: d2918819a864502448a61485c4b20818b0778ac2)",
+        "#6 0x55ebfc1cabbc in rz_bin_open_buf (/home/madrat/Desk top/fuzz-targets/rz-installation-libfuzzer-asan/bin/rz-fuzz+0x120cbbc)",
+        "#10 0x55ebfbfa0707 in fuzzer::FuzzerDriver(int*, char***, int (*)(unsigned char const*, unsigned long)) (/home/madrat/Desktop/fuzz-targets/rz-installation-libfuzzer-asan/bin/rz-fuzz+0xfe2707)",
+        "#0  __strncpy_avx2 () at ../sysdeps/x86_64/multiarch/strcpy-avx2.S:363:4",
+        "#9  0x00007ffff7a9f083 in __libc_start_main (main=0x2168a0, argc=2, argv=0x7fffffffe668, init=<optimized out>, fini=<optimized out>, rtld_fini=<optimized out>, stack_end=0x7fffffffe658) at ../csu/libc-start.c:308",
+        "#0  __strncpy_avx2 () at ../sysdeps/x86_64/multiarch/strcpy-avx2.S:363",
+        "#0  __strncpy_avx2 () at ../sysdeps/x86_64/multiarch/strcpy-avx2.S",
+        "#9 0x43b1a1 in fuzzer::Fuzzer::ExecuteCallback(unsigned char const*, unsigned long) /llvm-project/compiler-rt/lib/fuzzer/FuzzerLoop.cpp:611:15",
+        "#7 0x52433e in cmsIT8LoadFromMem /lcms/src/cmscgats.c:2438:10",
+        "#7 0x52433e in cmsIT8LoadFromMem /lcms/src/cmscgats.c:2438",
+        "#7 0x52433e in cmsIT8LoadFromMem /lcms/src/cmscgats.c",
+        "#9 0x43b1a1 in fuzzer::Fuzzer::ExecuteCallback(unsigned char const*, unsigned long) /llvm-project/compiler-rt/lib/fuzzer/FuzzerLoop.cpp",
+        "#5  0x00005555555551d4 in main ()",
+        "#1  0x0000000000216d07 in ?? ()",
+        "#0  __strncpy_avx2 () from /lib/libc.so.6",
+        "#0  0xf7fcf569 in __kernel_vsyscall ()"
+    ];
 
-    let sttr = Stacktrace::from_gdb(mystacktrace);
+    let sttr = Stacktrace::from_gdb(&raw_stacktrace.join("\n"));
     if sttr.is_err() {
         assert!(false, "{}", sttr.err().unwrap());
     }
-    let sttr = sttr.unwrap();
-
-    // Eq check
-    assert_eq!(sttr[0], sttr[5]);
-    assert_eq!(sttr[1] == sttr[6], false);
-    assert_eq!(sttr[2], sttr[7]);
-    assert_eq!(sttr[3], sttr[8]);
-    assert_eq!(sttr[4], sttr[9]);
-
-    // Hash check
-    let mut tracehash = HashSet::new();
-
-    tracehash.insert([sttr[0].clone(), sttr[2].clone()].to_vec());
-    tracehash.insert([sttr[5].clone(), sttr[7].clone()].to_vec());
-
-    if tracehash.len() != 1 {
-        assert!(false, "Hash check fail");
-    }
-
-    assert_eq!(sttr[11].debug.file, "bin_dyldcache.c".to_string());
-    assert_eq!(sttr[11].debug.line, 0);
 }
 
 #[test]
