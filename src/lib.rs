@@ -114,6 +114,7 @@ pub trait MappedFilesExt {
     /// * 'addr' - given address
     fn find(&self, addr: u64) -> Option<File>;
 }
+
 impl MappedFilesExt for MappedFiles {
     fn from_gdb<T: AsRef<str>>(mapping: T) -> error::Result<MappedFiles> {
         let mut hlp = mapping
@@ -244,23 +245,23 @@ impl StacktraceEntry {
     ///
     /// # Arguments
     ///
-    /// * 'trace' - one line of stacktrace from gdb
+    /// * 'entry' - one line of stacktrace from gdb
     pub fn new<T: AsRef<str>>(entry: T) -> error::Result<StacktraceEntry> {
         let mut stentry = StacktraceEntry::default();
 
+        // NOTE: the order of applying regexps is important.
         // 1. ASAN module+offset case
-        let re = Regex::new(r"^ *#[0-9]+ *(0x[0-9a-f]+) *(?:in *(.+))? *\((.*)\+(0x[0-9a-f]+)\)")
+        let re = Regex::new(r"^ *#[0-9]+ *0x([0-9a-f]+) *(?:in *(.+))? *\((.*)\+(0x[0-9a-f]+)\)")
             .unwrap();
         if let Some(caps) = re.captures(entry.as_ref()) {
             // Get address. Unwrap is safe.
-            let without_prefix = caps.get(1).unwrap().as_str().trim_start_matches("0x");
-            stentry.address = u64::from_str_radix(without_prefix, 16).unwrap();
+            stentry.address = u64::from_str_radix(caps.get(1).unwrap().as_str(), 16).unwrap();
             // Get function name (optional).
             if let Some(func) = caps.get(2) {
-                stentry.function = func.as_str().to_string();
+                stentry.function = func.as_str().trim().to_string();
             }
             // Get module name.
-            stentry.module = caps.get(3).unwrap().as_str().to_string();
+            stentry.module = caps.get(3).unwrap().as_str().trim().to_string();
             // Get offset in module. Unwrap is safe.
             let without_prefix = caps.get(4).unwrap().as_str().trim_start_matches("0x");
             stentry.offset = u64::from_str_radix(without_prefix, 16).unwrap();
@@ -270,39 +271,37 @@ impl StacktraceEntry {
 
         // 2. GDB source+line+column
         let re =
-            Regex::new(r"^ *#[0-9]+ *(?:(0x[0-9a-f]+) +in)? *(.+) +at +(.+):(\d+):(\d+)").unwrap();
+            Regex::new(r"^ *#[0-9]+ *(?:0x([0-9a-f]+) +in)? *(.+) +at +(.+):(\d+):(\d+)").unwrap();
         if let Some(caps) = re.captures(entry.as_ref()) {
             // Get address (optional).
             if let Some(address) = caps.get(1) {
                 // Unwrap is safe.
-                let without_prefix = address.as_str().trim_start_matches("0x");
-                stentry.address = u64::from_str_radix(without_prefix, 16).unwrap();
+                stentry.address = u64::from_str_radix(address.as_str(), 16).unwrap();
             }
             // Get function name.
-            stentry.function = caps.get(2).unwrap().as_str().to_string();
+            stentry.function = caps.get(2).unwrap().as_str().trim().to_string();
             // Get source file.
-            stentry.debug.file = caps.get(3).unwrap().as_str().to_string();
+            stentry.debug.file = caps.get(3).unwrap().as_str().trim().to_string();
             // Get source line. Unwrap is safe.
             stentry.debug.line = caps.get(4).unwrap().as_str().parse::<u64>().unwrap();
             // Get source column. Unwrap is safe.
-            stentry.debug.line = caps.get(5).unwrap().as_str().parse::<u64>().unwrap();
+            stentry.debug.column = caps.get(5).unwrap().as_str().parse::<u64>().unwrap();
 
             return Ok(stentry);
         }
 
         // 3. GDB source+line
-        let re = Regex::new(r"^ *#[0-9]+ *(?:(0x[0-9a-f]+) +in)? *(.+) +at +(.+):(\d+)").unwrap();
+        let re = Regex::new(r"^ *#[0-9]+ *(?:0x([0-9a-f]+) +in)? *(.+) +at +(.+):(\d+)").unwrap();
         if let Some(caps) = re.captures(entry.as_ref()) {
             // Get address (optional).
             if let Some(address) = caps.get(1) {
                 // Unwrap is safe.
-                let without_prefix = address.as_str().trim_start_matches("0x");
-                stentry.address = u64::from_str_radix(without_prefix, 16).unwrap();
+                stentry.address = u64::from_str_radix(address.as_str(), 16).unwrap();
             }
             // Get function name.
-            stentry.function = caps.get(2).unwrap().as_str().to_string();
+            stentry.function = caps.get(2).unwrap().as_str().trim().to_string();
             // Get source file.
-            stentry.debug.file = caps.get(3).unwrap().as_str().to_string();
+            stentry.debug.file = caps.get(3).unwrap().as_str().trim().to_string();
             // Get source line. Unwrap is safe.
             stentry.debug.line = caps.get(4).unwrap().as_str().parse::<u64>().unwrap();
 
@@ -310,16 +309,15 @@ impl StacktraceEntry {
         }
 
         // 4. GDB source
-        let re = Regex::new(r"^ *#[0-9]+ *(?:(0x[0-9a-f]+) +in)? *(.+) +at +(.+)").unwrap();
+        let re = Regex::new(r"^ *#[0-9]+ *(?:0x([0-9a-f]+) +in)? *(.+) +at +(.+)").unwrap();
         if let Some(caps) = re.captures(entry.as_ref()) {
             // Get address (optional).
             if let Some(address) = caps.get(1) {
                 // Unwrap is safe.
-                let without_prefix = address.as_str().trim_start_matches("0x");
-                stentry.address = u64::from_str_radix(without_prefix, 16).unwrap();
+                stentry.address = u64::from_str_radix(address.as_str(), 16).unwrap();
             }
             // Get function name.
-            stentry.function = caps.get(2).unwrap().as_str().to_string();
+            stentry.function = caps.get(2).unwrap().as_str().trim().to_string();
             // Get source file.
             stentry.debug.file = caps.get(3).unwrap().as_str().to_string();
 
@@ -328,75 +326,72 @@ impl StacktraceEntry {
 
         // 5. ASAN source+line+column
         let re = Regex::new(
-            r"^ *#[0-9]+ *(0x[0-9a-f]+) *in *([^ \(\)]+(?: *\(.*\))?) *([^\(\)]+):(\d+):(\d+)",
+            r"^ *#[0-9]+ *0x([0-9a-f]+) *in *([^ \(\)]+(?: *\(.*\))?) *([^\(\)]+):(\d+):(\d+)",
         )
         .unwrap();
         if let Some(caps) = re.captures(entry.as_ref()) {
             // Get address. Unwrap is safe.
-            let without_prefix = caps.get(1).unwrap().as_str().trim_start_matches("0x");
-            stentry.address = u64::from_str_radix(without_prefix, 16).unwrap();
+            stentry.address = u64::from_str_radix(caps.get(1).unwrap().as_str(), 16).unwrap();
             // Get function name.
-            stentry.function = caps.get(2).unwrap().as_str().to_string();
+            stentry.function = caps.get(2).unwrap().as_str().trim().to_string();
             // Get source file.
-            stentry.debug.file = caps.get(3).unwrap().as_str().to_string();
+            stentry.debug.file = caps.get(3).unwrap().as_str().trim().to_string();
             // Get source line. Unwrap is safe.
             stentry.debug.line = caps.get(4).unwrap().as_str().parse::<u64>().unwrap();
             // Get source column. Unwrap is safe.
-            stentry.debug.line = caps.get(5).unwrap().as_str().parse::<u64>().unwrap();
+            stentry.debug.column = caps.get(5).unwrap().as_str().parse::<u64>().unwrap();
 
             return Ok(stentry);
         }
 
         // 6. ASAN source+line
         let re = Regex::new(
-            r"^ *#[0-9]+ *(0x[0-9a-f]+) *in *([^ \(\)]+(?: *\(.*\))?) *([^\(\)]+):(\d+)",
+            r"^ *#[0-9]+ *0x([0-9a-f]+) *in *([^ \(\)]+(?: *\(.*\))?) *([^\(\)]+):(\d+)",
         )
         .unwrap();
         if let Some(caps) = re.captures(entry.as_ref()) {
             // Get address. Unwrap is safe.
-            let without_prefix = caps.get(1).unwrap().as_str().trim_start_matches("0x");
-            stentry.address = u64::from_str_radix(without_prefix, 16).unwrap();
+            stentry.address = u64::from_str_radix(caps.get(1).unwrap().as_str(), 16).unwrap();
             // Get function name.
-            stentry.function = caps.get(2).unwrap().as_str().to_string();
+            stentry.function = caps.get(2).unwrap().as_str().trim().to_string();
             // Get source file.
-            stentry.debug.file = caps.get(3).unwrap().as_str().to_string();
+            stentry.debug.file = caps.get(3).unwrap().as_str().trim().to_string();
             // Get source line. Unwrap is safe.
             stentry.debug.line = caps.get(4).unwrap().as_str().parse::<u64>().unwrap();
 
             return Ok(stentry);
         }
 
+        // 7. ASAN source
         let re =
-            Regex::new(r"^ *#[0-9]+ *(0x[0-9a-f]+) *in *([^ \(\)]+(?: *\(.*\))?) *([^\(\)]+)$")
+            Regex::new(r"^ *#[0-9]+ *0x([0-9a-f]+) *in *([^ \(\)]+(?: *\(.*\))?) *([^\(\)]+)$")
                 .unwrap();
         if let Some(caps) = re.captures(entry.as_ref()) {
             // Get address. Unwrap is safe.
-            let without_prefix = caps.get(1).unwrap().as_str().trim_start_matches("0x");
-            stentry.address = u64::from_str_radix(without_prefix, 16).unwrap();
+            stentry.address = u64::from_str_radix(caps.get(1).unwrap().as_str(), 16).unwrap();
             // Get function name.
-            stentry.function = caps.get(2).unwrap().as_str().to_string();
+            stentry.function = caps.get(2).unwrap().as_str().trim().to_string();
             // Get source file.
-            stentry.debug.file = caps.get(3).unwrap().as_str().to_string();
+            stentry.debug.file = caps.get(3).unwrap().as_str().trim().to_string();
 
             return Ok(stentry);
         }
 
         // 8. GDB no source (address and from library are optional)
         let re =
-            Regex::new(r"^ *#[0-9]+ *(?:(0x[0-9a-f]+) +in)? *([^ \(\)]+ *\(.*\))(?: +from +(.+))?")
+            Regex::new(r"^ *#[0-9]+ *(?:0x([0-9a-f]+) +in)? *([^ \(\)]+ *\(.*\))(?: +from +(.+))?")
                 .unwrap();
         if let Some(caps) = re.captures(entry.as_ref()) {
             // Get address (optional).
             if let Some(address) = caps.get(1) {
                 // Unwrap is safe.
-                let without_prefix = address.as_str().trim_start_matches("0x");
-                stentry.address = u64::from_str_radix(without_prefix, 16).unwrap();
+                stentry.address = u64::from_str_radix(address.as_str(), 16).unwrap();
             }
             // Get function name.
-            stentry.function = caps.get(2).unwrap().as_str().to_string();
+            stentry.function = caps.get(2).unwrap().as_str().trim().to_string();
             // Get module name.
             if let Some(module) = caps.get(3) {
-                stentry.module = module.as_str().to_string();
+                stentry.module = module.as_str().trim().to_string();
             }
 
             return Ok(stentry);
@@ -408,11 +403,11 @@ impl StacktraceEntry {
     }
 }
 
-/// Struct represents the information about stack trace
+/// Represents the information about stack trace
 pub type Stacktrace = Vec<StacktraceEntry>;
 
 pub trait StacktraceExt {
-    /// Get stack trace as a string and converts it into 'Stacktrace' struct
+    /// Get stack trace as a string and converts it into 'Stacktrace'
     ///
     /// # Arguments
     ///
@@ -441,12 +436,6 @@ impl StacktraceExt for Stacktrace {
             .map(|s| s.trim().to_string())
             .collect::<Vec<String>>();
         entries.retain(|trace| !trace.is_empty());
-
-        if entries.len() < 1 {
-            return Err(error::Error::StacktraceParse(
-                format!("Stack trace is empty: {}", trace.as_ref()).to_string(),
-            ));
-        }
 
         for x in entries.iter() {
             stacktrace.push(StacktraceEntry::new(&x.clone())?);

@@ -159,9 +159,9 @@ fn test_stacktrace_structs() {
     assert_eq!(sttr[sttr.len() - 1].offset, 0x72b);
     assert_eq!(result[1].contains(&sttr[sttr.len() - 1].module), true);
 
-    let raw_stacktrace = &[ "#10 0x55ebfbfa0707 (/home/madrat/Desktop/fuzz-targets/rz-installation-libfuzzer-asan/bin/rz-fuzz+0xfe2707) (BuildId: d2918819a864502448a61485c4b20818b0778ac2)",
-        "#6 0x55ebfc1cabbc in rz_bin_open_buf (/home/madrat/Desk top/fuzz-targets/rz-installation-libfuzzer-asan/bin/rz-fuzz+0x120cbbc)",
-        "#10 0x55ebfbfa0707 in fuzzer::FuzzerDriver(int*, char***, int (*)(unsigned char const*, unsigned long)) (/home/madrat/Desktop/fuzz-targets/rz-installation-libfuzzer-asan/bin/rz-fuzz+0xfe2707)",
+    let raw_stacktrace = &[ "#10 0x55ebfbfa0707 (/home/user/Desktop/fuzz-targets/rz-installation-libfuzzer-asan/bin/rz-fuzz+0xfe2707) (BuildId: d2918819a864502448a61485c4b20818b0778ac2)",
+        "#6 0x55ebfc1cabbc in rz_bin_open_buf (/home/user/Desk top/fuzz-targets/rz-installation-libfuzzer-asan/bin/rz-fuzz+0x120cbbc)",
+        "#10 0x55ebfbfa0707 in fuzzer::FuzzerDriver(int*, char***, int (*)(unsigned char const*, unsigned long)) (/home/user/Desktop/fuzz-targets/rz-installation-libfuzzer-asan/bin/rz-fuzz+0xfe2707)",
         "#0  __strncpy_avx2 () at ../sysdeps/x86_64/multiarch/strcpy-avx2.S:363:4",
         "#9  0x00007ffff7a9f083 in __libc_start_main (main=0x2168a0, argc=2, argv=0x7fffffffe668, init=<optimized out>, fini=<optimized out>, rtld_fini=<optimized out>, stack_end=0x7fffffffe658) at ../csu/libc-start.c:308",
         "#0  __strncpy_avx2 () at ../sysdeps/x86_64/multiarch/strcpy-avx2.S:363",
@@ -181,6 +181,112 @@ fn test_stacktrace_structs() {
     if sttr.is_err() {
         assert!(false, "{}", sttr.err().unwrap());
     }
+
+    let stacktrace = sttr.unwrap();
+    assert_eq!(stacktrace[0].address, 0x55ebfbfa0707);
+    assert_eq!(stacktrace[0].offset, 0xfe2707);
+    assert_eq!(
+        stacktrace[0].module,
+        "/home/user/Desktop/fuzz-targets/rz-installation-libfuzzer-asan/bin/rz-fuzz".to_string()
+    );
+
+    assert_eq!(stacktrace[1].address, 0x55ebfc1cabbc);
+    assert_eq!(stacktrace[1].offset, 0x120cbbc);
+    assert_eq!(
+        stacktrace[1].module,
+        "/home/user/Desk top/fuzz-targets/rz-installation-libfuzzer-asan/bin/rz-fuzz".to_string()
+    );
+    assert_eq!(stacktrace[1].function, "rz_bin_open_buf".to_string());
+
+    assert_eq!(stacktrace[2].address, 0x55ebfbfa0707);
+    assert_eq!(stacktrace[2].offset, 0xfe2707);
+    assert_eq!(
+        stacktrace[2].module,
+        "/home/user/Desktop/fuzz-targets/rz-installation-libfuzzer-asan/bin/rz-fuzz".to_string()
+    );
+    assert_eq!(
+        stacktrace[2].function,
+        "fuzzer::FuzzerDriver(int*, char***, int (*)(unsigned char const*, unsigned long))"
+            .to_string()
+    );
+
+    assert_eq!(stacktrace[3].function, "__strncpy_avx2 ()".to_string());
+    assert_eq!(
+        stacktrace[3].debug.file,
+        "../sysdeps/x86_64/multiarch/strcpy-avx2.S".to_string()
+    );
+    assert_eq!(stacktrace[3].debug.line, 363);
+    assert_eq!(stacktrace[3].debug.column, 4);
+
+    assert_eq!(stacktrace[4].address, 0x00007ffff7a9f083);
+    assert_eq!(stacktrace[4].function, "__libc_start_main (main=0x2168a0, argc=2, argv=0x7fffffffe668, init=<optimized out>, fini=<optimized out>, rtld_fini=<optimized out>, stack_end=0x7fffffffe658)".to_string());
+    assert_eq!(stacktrace[4].debug.file, "../csu/libc-start.c".to_string());
+    assert_eq!(stacktrace[4].debug.line, 308);
+
+    assert_eq!(stacktrace[5].function, "__strncpy_avx2 ()".to_string());
+    assert_eq!(
+        stacktrace[5].debug.file,
+        "../sysdeps/x86_64/multiarch/strcpy-avx2.S".to_string()
+    );
+    assert_eq!(stacktrace[5].debug.line, 363);
+
+    assert_eq!(stacktrace[6].function, "__strncpy_avx2 ()".to_string());
+    assert_eq!(
+        stacktrace[6].debug.file,
+        "../sysdeps/x86_64/multiarch/strcpy-avx2.S".to_string()
+    );
+
+    assert_eq!(stacktrace[7].address, 0x43b1a1);
+    assert_eq!(
+        stacktrace[7].function,
+        "fuzzer::Fuzzer::ExecuteCallback(unsigned char const*, unsigned long)".to_string()
+    );
+    assert_eq!(
+        stacktrace[7].debug.file,
+        "/llvm-project/compiler-rt/lib/fuzzer/FuzzerLoop.cpp".to_string()
+    );
+    assert_eq!(stacktrace[7].debug.line, 611);
+    assert_eq!(stacktrace[7].debug.column, 15);
+
+    assert_eq!(stacktrace[8].address, 0x52433e);
+    assert_eq!(stacktrace[8].function, "cmsIT8LoadFromMem".to_string());
+    assert_eq!(stacktrace[8].debug.file, "/lcms/src/cmscgats.c".to_string());
+    assert_eq!(stacktrace[8].debug.line, 2438);
+    assert_eq!(stacktrace[8].debug.column, 10);
+
+    assert_eq!(stacktrace[9].address, 0x52433e);
+    assert_eq!(stacktrace[9].function, "cmsIT8LoadFromMem".to_string());
+    assert_eq!(stacktrace[9].debug.file, "/lcms/src/cmscgats.c".to_string());
+    assert_eq!(stacktrace[9].debug.line, 2438);
+
+    assert_eq!(stacktrace[10].address, 0x52433e);
+    assert_eq!(stacktrace[10].function, "cmsIT8LoadFromMem".to_string());
+    assert_eq!(
+        stacktrace[10].debug.file,
+        "/lcms/src/cmscgats.c".to_string()
+    );
+
+    assert_eq!(stacktrace[11].address, 0x43b1a1);
+    assert_eq!(
+        stacktrace[11].function,
+        "fuzzer::Fuzzer::ExecuteCallback(unsigned char const*, unsigned long)".to_string()
+    );
+    assert_eq!(
+        stacktrace[11].debug.file,
+        "/llvm-project/compiler-rt/lib/fuzzer/FuzzerLoop.cpp".to_string()
+    );
+
+    assert_eq!(stacktrace[12].address, 0x00005555555551d4);
+    assert_eq!(stacktrace[12].function, "main ()".to_string());
+
+    assert_eq!(stacktrace[13].address, 0x0000000000216d07);
+    assert_eq!(stacktrace[13].function, "?? ()".to_string());
+
+    assert_eq!(stacktrace[14].module, "/lib/libc.so.6".to_string());
+    assert_eq!(stacktrace[14].function, "__strncpy_avx2 ()".to_string());
+
+    assert_eq!(stacktrace[15].address, 0xf7fcf569);
+    assert_eq!(stacktrace[15].function, "__kernel_vsyscall ()".to_string());
 }
 
 #[test]
