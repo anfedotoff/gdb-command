@@ -100,42 +100,33 @@ fn test_struct_mapped_files() {
     let prmap = prmap.unwrap();
 
     assert_eq!(
-        result[0]
-            .contains(format!("0x{:x}", prmap.files[prmap.files.len() - 1].base_address).as_str()),
+        result[0].contains(format!("0x{:x}", prmap[prmap.len() - 1].start).as_str()),
         true
     );
     assert_eq!(
-        result[0].contains(format!("0x{:x}", prmap.files[prmap.files.len() - 1].end).as_str()),
+        result[0].contains(format!("0x{:x}", prmap[prmap.len() - 1].end).as_str()),
         true
     );
     assert_eq!(
-        result[0].contains(
-            format!("0x{:x}", prmap.files[prmap.files.len() - 1].offset_in_file).as_str()
-        ),
+        result[0].contains(format!("0x{:x}", prmap[prmap.len() - 1].offset).as_str()),
         true
     );
-    if prmap.files[prmap.files.len() - 1].name != "No_file" {
+    if prmap[prmap.len() - 1].name != "No_file" {
         assert_eq!(
-            result[0].contains(&prmap.files[prmap.files.len() - 1].name.clone()),
+            result[0].contains(&prmap[prmap.len() - 1].name.clone()),
             true
         );
     }
 
     // Testing method 'find'
-    let ffile = prmap.find(prmap.files[prmap.files.len() - 1].base_address + 2);
+    let ffile = prmap.find(prmap[prmap.len() - 1].start + 2);
     if ffile.is_none() {
         assert!(false, "File not found!");
     }
     let ffile = ffile.unwrap();
 
-    assert_eq!(
-        ffile.base_address,
-        prmap.files[prmap.files.len() - 1].base_address
-    );
-    assert_eq!(
-        ffile.offset_in_file,
-        prmap.files[prmap.files.len() - 1].offset_in_file
-    );
+    assert_eq!(ffile.start, prmap[prmap.len() - 1].start);
+    assert_eq!(ffile.offset, prmap[prmap.len() - 1].offset);
 }
 
 #[test]
@@ -161,36 +152,19 @@ fn test_stacktrace_structs() {
         result[0].contains(format!("{:x}", sttr.last().unwrap().address).as_str()),
         true
     );
-    assert_eq!(
-        result[0].contains(&sttr.last().unwrap().debug.file_path),
-        true
-    );
-
-    // Testing method 'up_stacktrace_info'
+    assert_eq!(result[0].contains(&sttr.last().unwrap().debug.file), true);
 
     let prmap = MappedFiles::from_gdb(&result[1]).unwrap();
-    sttr.update_modules(&prmap);
+    sttr.compute_module_offsets(&prmap);
 
-    if let ModuleInfo::File(file) = &sttr[sttr.len() - 1].module {
-        assert_eq!(
-            result[1].contains(&format!("{:x}", file.base_address).to_string()),
-            true
-        );
-        assert_eq!(
-            result[1].contains(&format!("{:x}", file.end).to_string()),
-            true
-        );
-        assert_eq!(
-            result[1].contains(&format!("{:x}", file.offset_in_file).to_string()),
-            true
-        );
-        assert_eq!(
-            result[1].contains(&format!("{}", file.name).to_string()),
-            true
-        );
-    } else {
-        assert!(false, "No file...");
-    }
+    assert_eq!(
+        result[1].contains(&format!("{:x}", &sttr[sttr.len() - 1].offset).to_string()),
+        true
+    );
+    assert_eq!(
+        result[1].contains(&format!("{}", &sttr[sttr.len() - 1].module).to_string()),
+        true
+    );
 
     let mystacktrace = &[
         "#0  0x1123  __GI_raise (sig=sig@entry=6) at ../sysdeps/unix/sysv/linux/raise.c:50",
@@ -233,10 +207,7 @@ fn test_stacktrace_structs() {
         assert!(false, "Hash check fail");
     }
 
-    assert_eq!(
-        sttr[11].debug.file_path,
-        "bin_dyldcache.c".to_string()
-    );
+    assert_eq!(sttr[11].debug.file, "bin_dyldcache.c".to_string());
     assert_eq!(sttr[11].debug.line, 0);
 }
 

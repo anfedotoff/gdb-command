@@ -15,10 +15,10 @@
 //! use gdb_command::*;
 //!
 //! fn main () -> error::Result<()> {
-//!     // Get stacktrace from running program (stopped at crash)
+//!     // Get stack trace from running program (stopped at crash)
 //!     let result = GdbCommand::new(&ExecType::Local(&["tests/bins/test_abort", "A"])).r().bt().launch()?;
 //!
-//!     // Get stacktrace from core
+//!     // Get stack trace from core
 //!     let result = GdbCommand::new(
 //!             &ExecType::Core {target: "tests/bins/test_canary",
 //!                 core: "tests/bins/core.test_canary"})
@@ -55,33 +55,32 @@ use std::process::Command;
 #[derive(Clone, Default, Debug)]
 pub struct File {
     /// Start address of objfile
-    pub base_address: u64,
+    pub start: u64,
     /// End address of objfile
     pub end: u64,
     /// Offset in file.
-    pub offset_in_file: u64,
+    pub offset: u64,
     /// Full path to binary module.
     pub name: String,
 }
 
 impl File {
-    /// Returns File struct.
     /// Constructs Mapped file from components.
     ///
     /// # Arguments
     ///
-    /// * `base` - linear address of load.
+    /// * `start` - linear address of module load.
     ///
-    /// * `end` - linear address of end.
+    /// * `end` - linear address of module end.
     ///
     /// * `offset` - offset in file.
     ///
     ///* `fname` - full path to binary module.
-    pub fn new(base: u64, end: u64, offset: u64, fname: &str) -> Self {
+    pub fn new(start: u64, end: u64, offset: u64, fname: &str) -> Self {
         File {
-            base_address: base,
+            start,
             end,
-            offset_in_file: offset,
+            offset,
             name: String::from(fname),
         }
     }
@@ -91,42 +90,32 @@ impl fmt::Display for File {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "File {{ Base: 0x{:x}, End: 0x{:x}, offset: 0x{:x}, path: {} }}",
-            self.base_address, self.end, self.offset_in_file, self.name
+            "File {{ Start: 0x{:x}, End: 0x{:x}, offset: 0x{:x}, path: {} }}",
+            self.start, self.end, self.offset, self.name
         )
     }
 }
 
-///`MappedFiles` all mapped files in process.
-#[derive(Clone, Debug)]
-pub struct MappedFiles {
-    /// Vector of mapped files
-    pub files: Vec<File>,
-}
+/// `MappedFiles` all mapped files in process.
+pub type MappedFiles = Vec<File>;
 
-impl fmt::Display for MappedFiles {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut files_string = String::new();
-        for f in self.files.iter() {
-            files_string.push_str(&f.to_string());
-            files_string.push_str("; \n");
-        }
-        write!(
-            f,
-            "MappedFiles {{ Count:{};\n {} }}",
-            self.files.len(),
-            files_string
-        )
-    }
-}
-
-impl MappedFiles {
-    /// Returns MappedFiels struct
+pub trait MappedFilesExt {
+    /// Construct `MappedFiels` from string
     ///
     /// # Arguments
     ///
     /// * 'mapping' - gdb output string with mapped files
-    pub fn from_gdb<T: AsRef<str>>(mapping: T) -> error::Result<MappedFiles> {
+    fn from_gdb<T: AsRef<str>>(mapping: T) -> error::Result<MappedFiles>;
+
+    /// Determine which file contains the address
+    ///
+    /// # Arguments
+    ///
+    /// * 'addr' - given address
+    fn find(&self, addr: u64) -> Option<File>;
+}
+impl MappedFilesExt for MappedFiles {
+    fn from_gdb<T: AsRef<str>>(mapping: T) -> error::Result<MappedFiles> {
         let mut hlp = mapping
             .as_ref()
             .split('\n')
@@ -141,7 +130,7 @@ impl MappedFiles {
         }
         hlp.drain(0..pos.unwrap() + 1);
 
-        let mut some = Vec::<File>::new(); //TODO: extension.
+        let mut files = MappedFiles::new();
 
         for x in hlp.iter() {
             let mut filevec = x
@@ -150,52 +139,44 @@ impl MappedFiles {
                 .collect::<Vec<String>>();
             filevec.retain(|x| !x.is_empty());
             if filevec.len() < 4 {
-                return Err(error::Error::MappedFilesParse(
-                    format!("Expected at least 4 columns in {}", x.to_string()),
-                ));
+                return Err(error::Error::MappedFilesParse(format!(
+                    "Expected at least 4 columns in {}",
+                    x.to_string()
+                )));
             }
             let hlp = File {
-                base_address: u64::from_str_radix(
+                start: u64::from_str_radix(
                     filevec[0].clone().drain(2..).collect::<String>().as_str(),
                     16,
-                )
-                .unwrap(),
+                )?,
                 end: u64::from_str_radix(
                     filevec[1].clone().drain(2..).collect::<String>().as_str(),
                     16,
-                )
-                .unwrap(),
-                offset_in_file: u64::from_str_radix(
+                )?,
+                offset: u64::from_str_radix(
                     filevec[3].clone().drain(2..).collect::<String>().as_str(),
                     16,
-                )
-                .unwrap(),
+                )?,
                 name: if filevec.len() == 5 {
                     filevec[4].clone().to_string()
                 } else {
                     String::new()
                 },
             };
-            some.push(hlp.clone());
+            files.push(hlp.clone());
         }
 
-        Ok(MappedFiles { files: some })
+        Ok(files)
     }
 
-    /// Method determines which file contains the address
-    ///
-    /// # Arguments
-    ///
-    /// * 'addr' - given address
-    pub fn find(&self, addr: u64) -> Option<File> {
-        self.files
-            .iter()
-            .find(|&x| (x.base_address <= addr as u64) && (x.end > addr as u64))
+    fn find(&self, addr: u64) -> Option<File> {
+        self.iter()
+            .find(|&x| (x.start <= addr as u64) && (x.end > addr as u64))
             .cloned()
     }
 }
 
-/// `StacktraceEntry` struct represents the information about one line of the stacktrace.
+/// `StacktraceEntry` struct represents the information about one line of the stack trace.
 #[derive(Clone, Debug)]
 pub struct StacktraceEntry {
     /// Function address
@@ -214,40 +195,23 @@ pub struct StacktraceEntry {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DebugInfo {
     /// Source file.
-    pub file_path: String,
+    pub file: String,
     /// Source line.
     pub line: u64,
     /// Source column.
     pub column: u64,
 }
 
-//impl fmt::Display for StacktraceEntry {
-//    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//        write!(
-//            f,
-//            "Address: 0x{:x}, ModuleInfo: {}, DebugInfo: {}",
-//            self.address,
-//            match self.module.clone() {
-//                ModuleInfo::Name(x) => x,
-//                ModuleInfo::File(x) => x.to_string(),
-//            },
-//            [
-//                self.debug.file_path.clone(),
-//                self.debug.line.to_string(),
-//                self.debug.column.to_string()
-//            ]
-//            .join(":")
-//            .to_string(),
-//        )
-//    }
-//}
-
 impl PartialEq for StacktraceEntry {
     fn eq(&self, other: &Self) -> bool {
-        if !self.debug.file_path.is_empty() && !other.debug.file_path.is_empty() {
+        if !self.debug.file.is_empty() && !other.debug.file.is_empty() {
             return self.debug == other.debug;
         }
-        if !self.module.is_empty() && !other.module.is_empty() && self.offset != 0 && other.offset != 0 {
+        if !self.module.is_empty()
+            && !other.module.is_empty()
+            && self.offset != 0
+            && other.offset != 0
+        {
             return self.module == other.module && self.offset == other.offset;
         }
 
@@ -259,8 +223,8 @@ impl Eq for StacktraceEntry {}
 
 impl Hash for StacktraceEntry {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        if !self.debug.file_path.is_empty() {
-            self.debug.file_path.hash(state);
+        if !self.debug.file.is_empty() {
+            self.debug.file.hash(state);
             self.debug.line.hash(state);
             self.debug.column.hash(state);
             return;
@@ -281,9 +245,8 @@ impl StacktraceEntry {
     /// # Arguments
     ///
     /// * 'trace' - one line of stacktrace from gdb
-    pub fn new<T: AsRef<str>>(trace: T) -> error::Result<StacktraceEntry> {
-
-        let regex = &[
+    pub fn new<T: AsRef<str>>(entry: T) -> error::Result<StacktraceEntry> {
+        let _ = &[
             // 1. Asan module+offset case
             r"^ *#[0-9]+ *(0x[0-9a-f]+) *(?:in *(.+))? *\((.*)\+(0x[0-9a-f]+)\)",
             // 2. GDB source+line+column
@@ -302,11 +265,7 @@ impl StacktraceEntry {
             r"^ *#[0-9]+ *(?:(0x[0-9a-f]+) +in)? *([^ \(\)]+ *\(.*\))(?: +from +(.+))?",
         ];
 
-
-
-
-
-        let mut vectrace = trace
+        let mut vectrace = entry
             .as_ref()
             .split(' ')
             .map(|s| s.trim().to_string())
@@ -339,9 +298,11 @@ impl StacktraceEntry {
 
             return Ok(StacktraceEntry {
                 address: addr,
-                module: ModuleInfo::Name(func_with_args),
+                function: func_with_args,
+                module: String::new(),
+                offset: 0,
                 debug: DebugInfo {
-                    file_path: "".to_string(),
+                    file: "".to_string(),
                     line: 0 as u64,
                     column: 0 as u64,
                 },
@@ -420,9 +381,11 @@ impl StacktraceEntry {
                 if let Some(off_in_f) = &offset_in_file {
                     return Ok(StacktraceEntry {
                         address: addr,
-                        module: ModuleInfo::Name(func_with_args),
+                        function: func_with_args,
+                        module: String::new(),
+                        offset: 0,
                         debug: DebugInfo {
-                            file_path,
+                            file: file_path,
                             line: *off_in_f,
                             column: offset_in_line,
                         },
@@ -431,9 +394,11 @@ impl StacktraceEntry {
             }
             return Ok(StacktraceEntry {
                 address: addr,
-                module: ModuleInfo::Name(func_with_args),
+                function: func_with_args,
+                module: String::new(),
+                offset: 0,
                 debug: DebugInfo {
-                    file_path: debug_line,
+                    file: debug_line,
                     line: 0 as u64,
                     column: 0 as u64,
                 },
@@ -446,31 +411,26 @@ impl StacktraceEntry {
 pub type Stacktrace = Vec<StacktraceEntry>;
 
 pub trait StacktraceExt {
-    fn from_gdb<T: AsRef<str>>(trace: T) -> error::Result<Stacktrace>;
-
-    fn compute_module_offsets(&mut self, mappings: &MappedFiles);
-}
-//impl fmt::Display for Stacktrace {
-//    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//        let mut entry_string = String::new();
-//        for en in self.strace.iter() {
-//            entry_string.push_str(&en.to_string());
-//            entry_string.push_str("; \n");
-//        }
-//        write!(f, "Stacktrace\n{}", entry_string)
-//    }
-//}
-
-impl StacktraceExt for Stacktrace {
-    /// Method gets the stacktrace as a string and converts it into vector of 'StacktraceEntry' structs
+    /// Get stack trace as a string and converts it into 'Stacktrace' struct
     ///
     /// # Arguments
     ///
-    /// * 'trace' - stacktrace from gdb
+    /// * 'trace' - stack trace from gdb
     ///
     /// # Return value
     ///
-    /// The return value is a vector of  'StacktraceEntry' structs
+    /// The return value is a 'Stacktrace' struct
+    fn from_gdb<T: AsRef<str>>(trace: T) -> error::Result<Stacktrace>;
+
+    /// Compute module offsets for stack trace entries based on mapped files.
+    ///
+    /// # Arguments
+    ///
+    /// * 'mappings' - information about mapped files
+    fn compute_module_offsets(&mut self, mappings: &MappedFiles);
+}
+
+impl StacktraceExt for Stacktrace {
     fn from_gdb<T: AsRef<str>>(trace: T) -> error::Result<Stacktrace> {
         let mut stacktrace = Stacktrace::new();
         let mut entries = trace
@@ -482,11 +442,7 @@ impl StacktraceExt for Stacktrace {
 
         if entries.len() < 1 {
             return Err(error::Error::StacktraceParse(
-                format!(
-                    "Stack trace is empty: {}",
-                    trace.as_ref()
-                )
-                .to_string(),
+                format!("Stack trace is empty: {}", trace.as_ref()).to_string(),
             ));
         }
 
@@ -496,15 +452,10 @@ impl StacktraceExt for Stacktrace {
         Ok(stacktrace)
     }
 
-    /// Compute module offsets for stacktrace entries based on mapped files.
-    ///
-    /// # Arguments
-    ///
-    /// * 'mappings' - information about mapped files
     fn compute_module_offsets(&mut self, mappings: &MappedFiles) {
         self.iter_mut().for_each(|x| {
             if let Some(y) = mappings.find(x.address) {
-                x.offset = x.address - y.base_address + y.offset_in_file;
+                x.offset = x.address - y.start + y.offset;
             }
         });
     }
@@ -587,6 +538,8 @@ impl<'a> GdbCommand<'a> {
         gdb_args.push("set backtrace limit 2000".to_string());
         gdb_args.push("-ex".to_string());
         gdb_args.push("set disassembly-flavor intel".to_string());
+        gdb_args.push("-ex".to_string());
+        gdb_args.push("set filename-display absolute".to_string());
 
         // Add parameters according to execution
         match &self.exec_type {
