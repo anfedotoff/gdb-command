@@ -15,10 +15,10 @@
 //! use gdb_command::*;
 //!
 //! fn main () -> error::Result<()> {
-//!     // Get stacktrace from running program (stopped at crash)
+//!     // Get stack trace from running program (stopped at crash)
 //!     let result = GdbCommand::new(&ExecType::Local(&["tests/bins/test_abort", "A"])).r().bt().launch()?;
 //!
-//!     // Get stacktrace from core
+//!     // Get stack trace from core
 //!     let result = GdbCommand::new(
 //!             &ExecType::Core {target: "tests/bins/test_canary",
 //!                 core: "tests/bins/core.test_canary"})
@@ -55,33 +55,32 @@ use std::process::Command;
 #[derive(Clone, Default, Debug)]
 pub struct File {
     /// Start address of objfile
-    pub base_address: u64,
+    pub start: u64,
     /// End address of objfile
     pub end: u64,
     /// Offset in file.
-    pub offset_in_file: u64,
+    pub offset: u64,
     /// Full path to binary module.
     pub name: String,
 }
 
 impl File {
-    /// Returns File struct.
     /// Constructs Mapped file from components.
     ///
     /// # Arguments
     ///
-    /// * `base` - linear address of load.
+    /// * `start` - linear address of module load.
     ///
-    /// * `end` - linear address of end.
+    /// * `end` - linear address of module end.
     ///
     /// * `offset` - offset in file.
     ///
     ///* `fname` - full path to binary module.
-    pub fn new(base: u64, end: u64, offset: u64, fname: &str) -> Self {
+    pub fn new(start: u64, end: u64, offset: u64, fname: &str) -> Self {
         File {
-            base_address: base,
+            start,
             end,
-            offset_in_file: offset,
+            offset,
             name: String::from(fname),
         }
     }
@@ -91,189 +90,133 @@ impl fmt::Display for File {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "File {{ Base: 0x{:x}, End: 0x{:x}, offset: 0x{:x}, path: {} }}",
-            self.base_address, self.end, self.offset_in_file, self.name
+            "File {{ Start: 0x{:x}, End: 0x{:x}, offset: 0x{:x}, path: {} }}",
+            self.start, self.end, self.offset, self.name
         )
     }
 }
 
-///`MappedFiles` all mapped files in process.
-#[derive(Clone, Debug)]
-pub struct MappedFiles {
-    /// Vector of mapped files
-    pub files: Vec<File>,
-}
+/// `MappedFiles` all mapped files in process.
+pub type MappedFiles = Vec<File>;
 
-impl fmt::Display for MappedFiles {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut files_string = String::new();
-        for f in self.files.iter() {
-            files_string.push_str(&f.to_string());
-            files_string.push_str("; \n");
-        }
-        write!(
-            f,
-            "MappedFiles {{ Count:{};\n {} }}",
-            self.files.len(),
-            files_string
-        )
-    }
-}
-
-impl MappedFiles {
-    /// Returns MappedFiels struct
+pub trait MappedFilesExt {
+    /// Construct `MappedFiels` from string
     ///
     /// # Arguments
     ///
     /// * 'mapping' - gdb output string with mapped files
-    pub fn from_gdb<T: AsRef<str>>(mapping: T) -> error::Result<MappedFiles> {
+    fn from_gdb<T: AsRef<str>>(mapping: T) -> error::Result<MappedFiles>;
+
+    /// Determine which file contains the address
+    ///
+    /// # Arguments
+    ///
+    /// * 'addr' - given address
+    fn find(&self, addr: u64) -> Option<File>;
+}
+
+impl MappedFilesExt for MappedFiles {
+    fn from_gdb<T: AsRef<str>>(mapping: T) -> error::Result<MappedFiles> {
         let mut hlp = mapping
             .as_ref()
             .split('\n')
             .map(|s| s.trim().to_string())
             .collect::<Vec<String>>();
-        if hlp.len() < 6 {
-            return Err(error::Error::MappedFilesParse(
-                format!("cannot parse this string: {}", mapping.as_ref()).to_string(),
-            ));
-        }
 
         let pos = hlp.iter().position(|x| x.contains("Start Addr"));
         if pos.is_none() {
             return Err(error::Error::MappedFilesParse(
-                format!("cannot parse this string: {}", mapping.as_ref()).to_string(),
+                format!("Couldn't find Start Addr: {}", mapping.as_ref()).to_string(),
             ));
         }
         hlp.drain(0..pos.unwrap() + 1);
 
-        let mut some = Vec::<File>::new();
+        let mut files = MappedFiles::new();
 
         for x in hlp.iter() {
             let mut filevec = x
                 .split(' ')
                 .map(|s| s.trim().to_string())
                 .collect::<Vec<String>>();
-            filevec.retain(|x| x != "");
+            filevec.retain(|x| !x.is_empty());
             if filevec.len() < 4 {
-                return Err(error::Error::MappedFilesParse(
-                    format!("cannot parse this string: {}", mapping.as_ref()).to_string(),
-                ));
+                return Err(error::Error::MappedFilesParse(format!(
+                    "Expected at least 4 columns in {}",
+                    x.to_string()
+                )));
             }
             let hlp = File {
-                base_address: u64::from_str_radix(
+                start: u64::from_str_radix(
                     filevec[0].clone().drain(2..).collect::<String>().as_str(),
                     16,
-                )
-                .unwrap(),
+                )?,
                 end: u64::from_str_radix(
                     filevec[1].clone().drain(2..).collect::<String>().as_str(),
                     16,
-                )
-                .unwrap(),
-                offset_in_file: u64::from_str_radix(
+                )?,
+                offset: u64::from_str_radix(
                     filevec[3].clone().drain(2..).collect::<String>().as_str(),
                     16,
-                )
-                .unwrap(),
+                )?,
                 name: if filevec.len() == 5 {
                     filevec[4].clone().to_string()
                 } else {
                     String::new()
                 },
             };
-            some.push(hlp.clone());
+            files.push(hlp.clone());
         }
 
-        Ok(MappedFiles { files: some })
+        Ok(files)
     }
 
-    /// Method determines which file contains the address
-    ///
-    /// # Arguments
-    ///
-    /// * 'addr' - given address
-    pub fn find(&self, addr: u64) -> Option<File> {
-        self.files
-            .iter()
-            .find(|&x| (x.base_address < addr as u64) && (x.end > addr as u64))
+    fn find(&self, addr: u64) -> Option<File> {
+        self.iter()
+            .find(|&x| (x.start <= addr as u64) && (x.end > addr as u64))
             .cloned()
     }
 }
 
-/// 'ModuleInfo' enum represents the name of the module or contains information about the module.
-#[derive(Clone, Debug)]
-pub enum ModuleInfo {
-    /// Module name
-    Name(String),
-    /// Module file
-    File(File),
-}
-
-/// `StacktraceEntry` struct represents the information about one line of the stacktrace.
-#[derive(Clone, Debug)]
+/// `StacktraceEntry` struct represents the information about one line of the stack trace.
+#[derive(Clone, Debug, Default)]
 pub struct StacktraceEntry {
     /// Function address
     pub address: u64,
-    /// Information about the module
-    pub module: ModuleInfo,
+    /// Function name
+    pub function: String,
+    /// Module name
+    pub module: String,
+    /// Offset in module
+    pub offset: u64,
     /// Debug information
     pub debug: DebugInfo,
 }
 
 /// `FrameDebug` struct represents the debug information of one frame in stack trace.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub struct DebugInfo {
-    /// /path:123:456
-    /// "/path"
-    pub file_path: String,
-    /// 123
+    /// Source file.
+    pub file: String,
+    /// Source line.
     pub line: u64,
-    /// 456
+    /// Source column.
     pub column: u64,
-}
-
-impl fmt::Display for StacktraceEntry {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "Address: 0x{:x}, ModuleInfo: {}, DebugInfo: {}",
-            self.address,
-            match self.module.clone() {
-                ModuleInfo::Name(x) => x,
-                ModuleInfo::File(x) => x.to_string(),
-            },
-            [
-                self.debug.file_path.clone(),
-                self.debug.line.to_string(),
-                self.debug.column.to_string()
-            ]
-            .join(":")
-            .to_string(),
-        )
-    }
 }
 
 impl PartialEq for StacktraceEntry {
     fn eq(&self, other: &Self) -> bool {
-        if !self.debug.file_path.is_empty() && !other.debug.file_path.is_empty() {
+        if !self.debug.file.is_empty() && !other.debug.file.is_empty() {
             return self.debug == other.debug;
         }
-        match &self.module {
-            ModuleInfo::Name(_) => self.address == other.address,
-            ModuleInfo::File(file1) => {
-                if let ModuleInfo::File(file2) = &other.module {
-                    if (file1.name == file2.name)
-                        && (self.offset().unwrap() == other.offset().unwrap())
-                    {
-                        true
-                    } else {
-                        false
-                    }
-                } else {
-                    false
-                }
-            }
+        if !self.module.is_empty()
+            && !other.module.is_empty()
+            && self.offset != 0
+            && other.offset != 0
+        {
+            return self.module == other.module && self.offset == other.offset;
         }
+
+        self.address == other.address
     }
 }
 
@@ -281,21 +224,19 @@ impl Eq for StacktraceEntry {}
 
 impl Hash for StacktraceEntry {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        if !self.debug.file_path.is_empty() {
-            self.debug.file_path.hash(state);
+        if !self.debug.file.is_empty() {
+            self.debug.file.hash(state);
             self.debug.line.hash(state);
             self.debug.column.hash(state);
             return;
         }
-        match &self.module {
-            ModuleInfo::Name(_) => {
-                self.address.hash(state);
-            }
-            ModuleInfo::File(file) => {
-                file.name.hash(state);
-                self.offset().hash(state);
-            }
+        if !self.module.is_empty() && self.offset != 0 {
+            self.module.hash(state);
+            self.offset.hash(state);
+            return;
         }
+
+        self.address.hash(state);
     }
 }
 
@@ -304,223 +245,208 @@ impl StacktraceEntry {
     ///
     /// # Arguments
     ///
-    /// * 'trace' - one line of stacktrace from gdb
-    pub fn new<T: AsRef<str>>(trace: T) -> error::Result<StacktraceEntry> {
-        let mut vectrace = trace
-            .as_ref()
-            .split(' ')
-            .map(|s| s.trim().to_string())
-            .collect::<Vec<String>>();
-        vectrace.retain(|trace| trace != "");
-        let addr = u64::from_str_radix(
-            vectrace[1].clone().drain(2..).collect::<String>().as_str(),
-            16,
+    /// * 'entry' - one line of stacktrace from gdb
+    pub fn new<T: AsRef<str>>(entry: T) -> error::Result<StacktraceEntry> {
+        let mut stentry = StacktraceEntry::default();
+
+        // NOTE: the order of applying regexps is important.
+        // 1. ASAN module+offset case
+        let re = Regex::new(r"^ *#[0-9]+ *0x([0-9a-f]+) *(?:in *(.+))? *\((.*)\+0x([0-9a-f]+)\)")
+            .unwrap();
+        if let Some(caps) = re.captures(entry.as_ref()) {
+            // Get address. Unwrap is safe.
+            stentry.address = u64::from_str_radix(caps.get(1).unwrap().as_str(), 16).unwrap();
+            // Get function name (optional).
+            if let Some(func) = caps.get(2) {
+                stentry.function = func.as_str().trim().to_string();
+            }
+            // Get module name.
+            stentry.module = caps.get(3).unwrap().as_str().trim().to_string();
+            // Get offset in module. Unwrap is safe.
+            stentry.offset = u64::from_str_radix(caps.get(4).unwrap().as_str(), 16).unwrap();
+
+            return Ok(stentry);
+        }
+
+        // 2. GDB source+line+column
+        let re =
+            Regex::new(r"^ *#[0-9]+ *(?:0x([0-9a-f]+) +in)? *(.+) +at +(.+):(\d+):(\d+)").unwrap();
+        if let Some(caps) = re.captures(entry.as_ref()) {
+            // Get address (optional).
+            if let Some(address) = caps.get(1) {
+                // Unwrap is safe.
+                stentry.address = u64::from_str_radix(address.as_str(), 16).unwrap();
+            }
+            // Get function name.
+            stentry.function = caps.get(2).unwrap().as_str().trim().to_string();
+            // Get source file.
+            stentry.debug.file = caps.get(3).unwrap().as_str().trim().to_string();
+            // Get source line. Unwrap is safe.
+            stentry.debug.line = caps.get(4).unwrap().as_str().parse::<u64>().unwrap();
+            // Get source column. Unwrap is safe.
+            stentry.debug.column = caps.get(5).unwrap().as_str().parse::<u64>().unwrap();
+
+            return Ok(stentry);
+        }
+
+        // 3. GDB source+line
+        let re = Regex::new(r"^ *#[0-9]+ *(?:0x([0-9a-f]+) +in)? *(.+) +at +(.+):(\d+)").unwrap();
+        if let Some(caps) = re.captures(entry.as_ref()) {
+            // Get address (optional).
+            if let Some(address) = caps.get(1) {
+                // Unwrap is safe.
+                stentry.address = u64::from_str_radix(address.as_str(), 16).unwrap();
+            }
+            // Get function name.
+            stentry.function = caps.get(2).unwrap().as_str().trim().to_string();
+            // Get source file.
+            stentry.debug.file = caps.get(3).unwrap().as_str().trim().to_string();
+            // Get source line. Unwrap is safe.
+            stentry.debug.line = caps.get(4).unwrap().as_str().parse::<u64>().unwrap();
+
+            return Ok(stentry);
+        }
+
+        // 4. GDB source
+        let re = Regex::new(r"^ *#[0-9]+ *(?:0x([0-9a-f]+) +in)? *(.+) +at +(.+)").unwrap();
+        if let Some(caps) = re.captures(entry.as_ref()) {
+            // Get address (optional).
+            if let Some(address) = caps.get(1) {
+                // Unwrap is safe.
+                stentry.address = u64::from_str_radix(address.as_str(), 16).unwrap();
+            }
+            // Get function name.
+            stentry.function = caps.get(2).unwrap().as_str().trim().to_string();
+            // Get source file.
+            stentry.debug.file = caps.get(3).unwrap().as_str().trim().to_string();
+
+            return Ok(stentry);
+        }
+
+        // 5. ASAN source+line+column
+        let re = Regex::new(
+            r"^ *#[0-9]+ *0x([0-9a-f]+) *in *([^ \(\)]+(?: *\(.*\))?) *([^\(\)]+):(\d+):(\d+)",
         )
-        .unwrap_or(0);
-        let debug_line = match vectrace.last().clone() {
-            Some(x) => x.clone().to_string(),
-            None => "".to_string(),
-        };
-        let first: usize = if addr == 0 { 1 } else { 3 };
+        .unwrap();
+        if let Some(caps) = re.captures(entry.as_ref()) {
+            // Get address. Unwrap is safe.
+            stentry.address = u64::from_str_radix(caps.get(1).unwrap().as_str(), 16).unwrap();
+            // Get function name.
+            stentry.function = caps.get(2).unwrap().as_str().trim().to_string();
+            // Get source file.
+            stentry.debug.file = caps.get(3).unwrap().as_str().trim().to_string();
+            // Get source line. Unwrap is safe.
+            stentry.debug.line = caps.get(4).unwrap().as_str().parse::<u64>().unwrap();
+            // Get source column. Unwrap is safe.
+            stentry.debug.column = caps.get(5).unwrap().as_str().parse::<u64>().unwrap();
 
-        // In some cases we can see '#0  0xf7fcf569 in __kernel_vsyscall ()', so, pretty good
-        // technical solution below
-        if debug_line == "()" {
-            let func_with_args = if first <= vectrace.len() {
-                vectrace
-                    .clone()
-                    .drain(first..vectrace.len())
-                    .collect::<String>()
-            } else {
-                String::new()
-            };
-
-            return Ok(StacktraceEntry {
-                address: addr,
-                module: ModuleInfo::Name(func_with_args),
-                debug: DebugInfo {
-                    file_path: "".to_string(),
-                    line: 0 as u64,
-                    column: 0 as u64,
-                },
-            });
-        } else {
-            let func_with_args = if first < vectrace.len() - 1 {
-                vectrace
-                    .clone()
-                    .drain(first..vectrace.len() - 1)
-                    .collect::<String>()
-            } else {
-                String::new()
-            };
-            // Find debug info about line and pos in line
-
-            let dentries = &[
-                // "(/path/to/bin+0x123)"
-                r"\((?P<file_path_1>[^+]+)\+0x(?P<module_offset_1>[0-9a-fA-F]+)\)",
-                // "/path:16:17"
-                r"(?P<file_path_2>[^ ]+):(?P<file_line_1>\d+):(?P<offset_in_line>\d+)",
-                // "/path:16"
-                r"(?P<file_path_3>[^ ]+):(?P<file_line_2>\d+)",
-                // "(/path/to/bin+0x123)"
-                r"\((?P<file_path_4>.*)\+0x(?P<module_offset_2>[0-9a-fA-F]+)\)$",
-                // "libc.so.6"
-                r"(?P<file_path_5>[^ ]+)$",
-            ];
-
-            let asan_re = format!("^(?:{})$", dentries.join("|"));
-
-            let asan_base =
-                Regex::new(&asan_re).expect("Regex failed to compile while asan parsing");
-
-            let asan_captures = asan_base.captures(&debug_line);
-            if let Some(captures) = &asan_captures {
-                let file_path = match captures
-                    .name("file_path_1")
-                    .or_else(|| captures.name("file_path_2"))
-                    .or_else(|| captures.name("file_path_3"))
-                    .or_else(|| captures.name("file_path_4"))
-                    .or_else(|| captures.name("file_path_5"))
-                    .map(|x| x.as_str().to_string())
-                {
-                    Some(x) => x,
-                    None => String::new(),
-                };
-
-                let mut offset_in_file = match captures
-                    .name("module_offset_1")
-                    .or_else(|| captures.name("module_offset_2"))
-                    .map(|x| x.as_str())
-                {
-                    Some(x) => Some(u64::from_str_radix(x, 16)?),
-                    None => None,
-                };
-
-                if offset_in_file.is_none() {
-                    offset_in_file = match captures
-                        .name("file_line_1")
-                        .or_else(|| captures.name("file_line_2"))
-                        .map(|x| x.as_str())
-                    {
-                        Some(x) => Some(x.parse::<u64>()?),
-                        None => None,
-                    }
-                }
-
-                let offset_in_line = match captures
-                    .name("offset_in_line")
-                    .map(|x| x.as_str().to_string())
-                {
-                    Some(x) => x.parse::<u64>()?,
-                    None => 0,
-                };
-
-                if let Some(off_in_f) = &offset_in_file {
-                    return Ok(StacktraceEntry {
-                        address: addr,
-                        module: ModuleInfo::Name(func_with_args),
-                        debug: DebugInfo {
-                            file_path,
-                            line: *off_in_f,
-                            column: offset_in_line,
-                        },
-                    });
-                }
-            }
-            return Ok(StacktraceEntry {
-                address: addr,
-                module: ModuleInfo::Name(func_with_args),
-                debug: DebugInfo {
-                    file_path: debug_line,
-                    line: 0 as u64,
-                    column: 0 as u64,
-                },
-            });
+            return Ok(stentry);
         }
-    }
 
-    /// Method attaches 'File' struct to module information
+        // 6. ASAN source+line
+        let re = Regex::new(
+            r"^ *#[0-9]+ *0x([0-9a-f]+) *in *([^ \(\)]+(?: *\(.*\))?) *([^\(\)]+):(\d+)",
+        )
+        .unwrap();
+        if let Some(caps) = re.captures(entry.as_ref()) {
+            // Get address. Unwrap is safe.
+            stentry.address = u64::from_str_radix(caps.get(1).unwrap().as_str(), 16).unwrap();
+            // Get function name.
+            stentry.function = caps.get(2).unwrap().as_str().trim().to_string();
+            // Get source file.
+            stentry.debug.file = caps.get(3).unwrap().as_str().trim().to_string();
+            // Get source line. Unwrap is safe.
+            stentry.debug.line = caps.get(4).unwrap().as_str().parse::<u64>().unwrap();
+
+            return Ok(stentry);
+        }
+
+        // 7. ASAN source
+        let re =
+            Regex::new(r"^ *#[0-9]+ *0x([0-9a-f]+) *in *([^ \(\)]+(?: *\(.*\))?) *([^\(\)]+)$")
+                .unwrap();
+        if let Some(caps) = re.captures(entry.as_ref()) {
+            // Get address. Unwrap is safe.
+            stentry.address = u64::from_str_radix(caps.get(1).unwrap().as_str(), 16).unwrap();
+            // Get function name.
+            stentry.function = caps.get(2).unwrap().as_str().trim().to_string();
+            // Get source file.
+            stentry.debug.file = caps.get(3).unwrap().as_str().trim().to_string();
+
+            return Ok(stentry);
+        }
+
+        // 8. GDB no source (address and from library are optional)
+        let re =
+            Regex::new(r"^ *#[0-9]+ *(?:0x([0-9a-f]+) +in)? *([^ \(\)]+ *\(.*\))(?: +from +(.+))?")
+                .unwrap();
+        if let Some(caps) = re.captures(entry.as_ref()) {
+            // Get address (optional).
+            if let Some(address) = caps.get(1) {
+                // Unwrap is safe.
+                stentry.address = u64::from_str_radix(address.as_str(), 16).unwrap();
+            }
+            // Get function name.
+            stentry.function = caps.get(2).unwrap().as_str().trim().to_string();
+            // Get module name.
+            if let Some(module) = caps.get(3) {
+                stentry.module = module.as_str().trim().to_string();
+            }
+
+            return Ok(stentry);
+        }
+
+        return Err(error::Error::StacktraceParse(
+            format!("Couldn't parse stack trace entry: {}", entry.as_ref()).to_string(),
+        ));
+    }
+}
+
+/// Represents the information about stack trace
+pub type Stacktrace = Vec<StacktraceEntry>;
+
+pub trait StacktraceExt {
+    /// Get stack trace as a string and converts it into 'Stacktrace'
     ///
     /// # Arguments
     ///
-    /// 'file' - struct 'File'
-    pub fn update_module(&mut self, file: &File) {
-        self.module = ModuleInfo::File(file.clone());
-    }
-
-    /// Method computes the offset between the function and the start of the file
-    pub fn offset(&self) -> Option<u64> {
-        match &self.module {
-            ModuleInfo::Name(_) => None,
-            ModuleInfo::File(file) => {
-                Some(self.address as u64 - file.base_address + file.offset_in_file)
-            }
-        }
-    }
-}
-
-/// Struct represents the information about stack trace
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
-pub struct Stacktrace {
-    /// Vector of stack trace
-    pub strace: Vec<StacktraceEntry>,
-}
-
-impl fmt::Display for Stacktrace {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut entry_string = String::new();
-        for en in self.strace.iter() {
-            entry_string.push_str(&en.to_string());
-            entry_string.push_str("; \n");
-        }
-        write!(f, "Stacktrace\n{}", entry_string)
-    }
-}
-
-impl Stacktrace {
-    /// Method gets the stacktrace as a string and converts it into vector of 'StacktraceEntry' structs
-    ///
-    /// # Arguments
-    ///
-    /// * 'trace' - stacktrace from gdb
+    /// * 'trace' - stack trace from gdb
     ///
     /// # Return value
     ///
-    /// The return value is a vector of  'StacktraceEntry' structs
-    pub fn from_gdb<T: AsRef<str>>(trace: T) -> error::Result<Stacktrace> {
-        let mut some = Vec::<StacktraceEntry>::new();
+    /// The return value is a 'Stacktrace' struct
+    fn from_gdb<T: AsRef<str>>(trace: T) -> error::Result<Stacktrace>;
+
+    /// Compute module offsets for stack trace entries based on mapped files.
+    /// Gdb doesn't print module and offset in stack trace.
+    ///
+    /// # Arguments
+    ///
+    /// * 'mappings' - information about mapped files
+    fn compute_module_offsets(&mut self, mappings: &MappedFiles);
+}
+
+impl StacktraceExt for Stacktrace {
+    fn from_gdb<T: AsRef<str>>(trace: T) -> error::Result<Stacktrace> {
+        let mut stacktrace = Stacktrace::new();
         let mut entries = trace
             .as_ref()
             .split('\n')
             .map(|s| s.trim().to_string())
             .collect::<Vec<String>>();
-        entries.retain(|trace| trace != "");
-
-        if entries.len() < 1 {
-            return Err(error::Error::StacktraceParse(
-                format!(
-                    "cannot get stack trace from this string: {}",
-                    trace.as_ref()
-                )
-                .to_string(),
-            ));
-        }
+        entries.retain(|trace| !trace.is_empty());
 
         for x in entries.iter() {
-            some.push(StacktraceEntry::new(&x.clone())?);
+            stacktrace.push(StacktraceEntry::new(&x.clone())?);
         }
-        Ok(Stacktrace { strace: some })
+        Ok(stacktrace)
     }
 
-    /// Method updates information about function modules.
-    ///
-    /// # Arguments
-    ///
-    /// * 'mappings' - information about mapped files
-    pub fn update_modules(&mut self, mappings: &MappedFiles) {
-        self.strace.iter_mut().for_each(|x| {
+    fn compute_module_offsets(&mut self, mappings: &MappedFiles) {
+        self.iter_mut().for_each(|x| {
             if let Some(y) = mappings.find(x.address) {
-                x.update_module(&y);
+                x.offset = x.address - y.start + y.offset;
+                x.module = y.name;
             }
         });
     }
@@ -603,6 +529,8 @@ impl<'a> GdbCommand<'a> {
         gdb_args.push("set backtrace limit 2000".to_string());
         gdb_args.push("-ex".to_string());
         gdb_args.push("set disassembly-flavor intel".to_string());
+        gdb_args.push("-ex".to_string());
+        gdb_args.push("set filename-display absolute".to_string());
 
         // Add parameters according to execution
         match &self.exec_type {
