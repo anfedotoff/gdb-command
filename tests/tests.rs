@@ -174,7 +174,9 @@ fn test_stacktrace_structs() {
         "#5  0x00005555555551d4 in main ()",
         "#1  0x0000000000216d07 in ?? ()",
         "#0  __strncpy_avx2 () from /lib/libc.so.6",
-        "#0  0xf7fcf569 in __kernel_vsyscall ()"
+        "#0  0xf7fcf569 in __kernel_vsyscall ()",
+        "#4 0x998b40 in (anonymous namespace)::decrypt_xlsx(std::vector<unsigned char, std::allocator<unsigned char> > const&, std::__cxx11::basic_string<char16_t, std::char_traits<char16_t>, std::allocator<char16_t> > const&) /xlnt/source/detail/cryptography/xlsx_crypto_consumer.cpp:320:37",
+        "#2  0x0000000000487c2c in (anonymous namespace)::decrypt_xlsx(std::vector<unsigned char, std::allocator<unsigned char> > const&, std::__cxx11::basic_string<char16_t, std::char_traits<char16_t>, std::allocator<char16_t> > const&) ()"
     ];
 
     let sttr = Stacktrace::from_gdb(&raw_stacktrace.join("\n"));
@@ -287,6 +289,18 @@ fn test_stacktrace_structs() {
 
     assert_eq!(stacktrace[15].address, 0xf7fcf569);
     assert_eq!(stacktrace[15].function, "__kernel_vsyscall ()".to_string());
+
+    assert_eq!(stacktrace[16].address, 0x998b40);
+    assert_eq!(stacktrace[16].function, "(anonymous namespace)::decrypt_xlsx(std::vector<unsigned char, std::allocator<unsigned char> > const&, std::__cxx11::basic_string<char16_t, std::char_traits<char16_t>, std::allocator<char16_t> > const&)".to_string());
+    assert_eq!(
+        stacktrace[16].debug.file,
+        "/xlnt/source/detail/cryptography/xlsx_crypto_consumer.cpp".to_string()
+    );
+    assert_eq!(stacktrace[16].debug.line, 320);
+    assert_eq!(stacktrace[16].debug.column, 37);
+
+    assert_eq!(stacktrace[17].address, 0x0000000000487c2c);
+    assert_eq!(stacktrace[17].function, "(anonymous namespace)::decrypt_xlsx(std::vector<unsigned char, std::allocator<unsigned char> > const&, std::__cxx11::basic_string<char16_t, std::char_traits<char16_t>, std::allocator<char16_t> > const&) ()".to_string());
 }
 
 #[test]
