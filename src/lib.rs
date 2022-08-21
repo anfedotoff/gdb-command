@@ -250,25 +250,7 @@ impl StacktraceEntry {
         let mut stentry = StacktraceEntry::default();
 
         // NOTE: the order of applying regexps is important.
-        // 1. ASAN module+offset case
-        let re = Regex::new(r"^ *#[0-9]+ *0x([0-9a-f]+) *(?:in *(.+))? *\((.*)\+0x([0-9a-f]+)\)")
-            .unwrap();
-        if let Some(caps) = re.captures(entry.as_ref()) {
-            // Get address. Unwrap is safe.
-            stentry.address = u64::from_str_radix(caps.get(1).unwrap().as_str(), 16).unwrap();
-            // Get function name (optional).
-            if let Some(func) = caps.get(2) {
-                stentry.function = func.as_str().trim().to_string();
-            }
-            // Get module name.
-            stentry.module = caps.get(3).unwrap().as_str().trim().to_string();
-            // Get offset in module. Unwrap is safe.
-            stentry.offset = u64::from_str_radix(caps.get(4).unwrap().as_str(), 16).unwrap();
-
-            return Ok(stentry);
-        }
-
-        // 2. GDB source+line+column
+        // 1. GDB source+line+column
         let re =
             Regex::new(r"^ *#[0-9]+ *(?:0x([0-9a-f]+) +in)? *(.+) +at +(.+):(\d+):(\d+)").unwrap();
         if let Some(caps) = re.captures(entry.as_ref()) {
@@ -323,61 +305,7 @@ impl StacktraceEntry {
             return Ok(stentry);
         }
 
-        // 5. ASAN source+line+column
-        let re = Regex::new(
-            r"^ *#[0-9]+ *0x([0-9a-f]+) *in *((?:\(.+\)::)?[^ \(\)]+(?: *\(.*\))?) *([^\(\)]+):(\d+):(\d+)",
-        )
-        .unwrap();
-        if let Some(caps) = re.captures(entry.as_ref()) {
-            // Get address. Unwrap is safe.
-            stentry.address = u64::from_str_radix(caps.get(1).unwrap().as_str(), 16).unwrap();
-            // Get function name.
-            stentry.function = caps.get(2).unwrap().as_str().trim().to_string();
-            // Get source file.
-            stentry.debug.file = caps.get(3).unwrap().as_str().trim().to_string();
-            // Get source line. Unwrap is safe.
-            stentry.debug.line = caps.get(4).unwrap().as_str().parse::<u64>().unwrap();
-            // Get source column. Unwrap is safe.
-            stentry.debug.column = caps.get(5).unwrap().as_str().parse::<u64>().unwrap();
-
-            return Ok(stentry);
-        }
-
-        // 6. ASAN source+line
-        let re = Regex::new(
-            r"^ *#[0-9]+ *0x([0-9a-f]+) *in *((?:\(.+\)::)?[^ \(\)]+(?: *\(.*\))?) *([^\(\)]+):(\d+)",
-        )
-        .unwrap();
-        if let Some(caps) = re.captures(entry.as_ref()) {
-            // Get address. Unwrap is safe.
-            stentry.address = u64::from_str_radix(caps.get(1).unwrap().as_str(), 16).unwrap();
-            // Get function name.
-            stentry.function = caps.get(2).unwrap().as_str().trim().to_string();
-            // Get source file.
-            stentry.debug.file = caps.get(3).unwrap().as_str().trim().to_string();
-            // Get source line. Unwrap is safe.
-            stentry.debug.line = caps.get(4).unwrap().as_str().parse::<u64>().unwrap();
-
-            return Ok(stentry);
-        }
-
-        // 7. ASAN source
-        let re = Regex::new(
-            r"^ *#[0-9]+ *0x([0-9a-f]+) *in *((?:\(.+\)::)?[^ \(\)]+(?: *\(.*\))?) *([^\(\)]+)$",
-        )
-        .unwrap();
-        if let Some(caps) = re.captures(entry.as_ref()) {
-            // Get address. Unwrap is safe.
-            stentry.address = u64::from_str_radix(caps.get(1).unwrap().as_str(), 16).unwrap();
-            // Get function name.
-            stentry.function = caps.get(2).unwrap().as_str().trim().to_string();
-            // Get source file.
-            stentry.debug.file = caps.get(3).unwrap().as_str().trim().to_string();
-
-            return Ok(stentry);
-        }
-
-        // 8. GDB from library (address is optional)
+        // 5. GDB from library (address is optional)
         let re = Regex::new(r"^ *#[0-9]+ *(?:0x([0-9a-f]+) +in)? *(.+) +from +(.+)").unwrap();
         if let Some(caps) = re.captures(entry.as_ref()) {
             // Get address (optional).
@@ -393,7 +321,7 @@ impl StacktraceEntry {
             return Ok(stentry);
         }
 
-        // 9. GDB no source (address is optional)
+        // 6. GDB no source (address is optional)
         let re = Regex::new(r"^ *#[0-9]+ *(?:0x([0-9a-f]+) +in)? *(.+)").unwrap();
         if let Some(caps) = re.captures(entry.as_ref()) {
             // Get address (optional).
