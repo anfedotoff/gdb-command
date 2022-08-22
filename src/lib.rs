@@ -271,7 +271,7 @@ impl StacktraceEntry {
             return Ok(stentry);
         }
 
-        // 3. GDB source+line
+        // 2. GDB source+line
         let re = Regex::new(r"^ *#[0-9]+ *(?:0x([0-9a-f]+) +in)? *(.+) +at +(.+):(\d+)").unwrap();
         if let Some(caps) = re.captures(entry.as_ref()) {
             // Get address (optional).
@@ -289,7 +289,7 @@ impl StacktraceEntry {
             return Ok(stentry);
         }
 
-        // 4. GDB source
+        // 3. GDB source
         let re = Regex::new(r"^ *#[0-9]+ *(?:0x([0-9a-f]+) +in)? *(.+) +at +(.+)").unwrap();
         if let Some(caps) = re.captures(entry.as_ref()) {
             // Get address (optional).
@@ -305,7 +305,7 @@ impl StacktraceEntry {
             return Ok(stentry);
         }
 
-        // 5. GDB from library (address is optional)
+        // 4. GDB from library (address is optional)
         let re = Regex::new(r"^ *#[0-9]+ *(?:0x([0-9a-f]+) +in)? *(.+) +from +(.+)").unwrap();
         if let Some(caps) = re.captures(entry.as_ref()) {
             // Get address (optional).
@@ -321,7 +321,7 @@ impl StacktraceEntry {
             return Ok(stentry);
         }
 
-        // 6. GDB no source (address is optional)
+        // 5. GDB no source (address is optional)
         let re = Regex::new(r"^ *#[0-9]+ *(?:0x([0-9a-f]+) +in)? *(.+)").unwrap();
         if let Some(caps) = re.captures(entry.as_ref()) {
             // Get address (optional).
