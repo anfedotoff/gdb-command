@@ -256,16 +256,15 @@ impl StacktraceEntry {
         if let Some(caps) = re.captures(entry.as_ref()) {
             // Get address (optional).
             if let Some(address) = caps.get(1) {
-                // Unwrap is safe.
                 stentry.address = u64::from_str_radix(address.as_str(), 16)?;
             }
             // Get function name.
             stentry.function = caps.get(2).unwrap().as_str().trim().to_string();
             // Get source file.
             stentry.debug.file = caps.get(3).unwrap().as_str().trim().to_string();
-            // Get source line. Unwrap is safe.
+            // Get source line.
             stentry.debug.line = caps.get(4).unwrap().as_str().parse::<u64>()?;
-            // Get source column. Unwrap is safe.
+            // Get source column.
             stentry.debug.column = caps.get(5).unwrap().as_str().parse::<u64>()?;
 
             return Ok(stentry);
@@ -276,14 +275,13 @@ impl StacktraceEntry {
         if let Some(caps) = re.captures(entry.as_ref()) {
             // Get address (optional).
             if let Some(address) = caps.get(1) {
-                // Unwrap is safe.
                 stentry.address = u64::from_str_radix(address.as_str(), 16)?;
             }
             // Get function name.
             stentry.function = caps.get(2).unwrap().as_str().trim().to_string();
             // Get source file.
             stentry.debug.file = caps.get(3).unwrap().as_str().trim().to_string();
-            // Get source line. Unwrap is safe.
+            // Get source line.
             stentry.debug.line = caps.get(4).unwrap().as_str().parse::<u64>()?;
 
             return Ok(stentry);
@@ -294,7 +292,6 @@ impl StacktraceEntry {
         if let Some(caps) = re.captures(entry.as_ref()) {
             // Get address (optional).
             if let Some(address) = caps.get(1) {
-                // Unwrap is safe.
                 stentry.address = u64::from_str_radix(address.as_str(), 16)?;
             }
             // Get function name.
@@ -310,7 +307,6 @@ impl StacktraceEntry {
         if let Some(caps) = re.captures(entry.as_ref()) {
             // Get address (optional).
             if let Some(address) = caps.get(1) {
-                // Unwrap is safe.
                 stentry.address = u64::from_str_radix(address.as_str(), 16)?;
             }
             // Get function name.
@@ -326,7 +322,6 @@ impl StacktraceEntry {
         if let Some(caps) = re.captures(entry.as_ref()) {
             // Get address (optional).
             if let Some(address) = caps.get(1) {
-                // Unwrap is safe.
                 stentry.address = u64::from_str_radix(address.as_str(), 16)?;
             }
             // Get function name.
