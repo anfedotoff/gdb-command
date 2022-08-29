@@ -257,16 +257,16 @@ impl StacktraceEntry {
             // Get address (optional).
             if let Some(address) = caps.get(1) {
                 // Unwrap is safe.
-                stentry.address = u64::from_str_radix(address.as_str(), 16).unwrap();
+                stentry.address = u64::from_str_radix(address.as_str(), 16)?;
             }
             // Get function name.
             stentry.function = caps.get(2).unwrap().as_str().trim().to_string();
             // Get source file.
             stentry.debug.file = caps.get(3).unwrap().as_str().trim().to_string();
             // Get source line. Unwrap is safe.
-            stentry.debug.line = caps.get(4).unwrap().as_str().parse::<u64>().unwrap();
+            stentry.debug.line = caps.get(4).unwrap().as_str().parse::<u64>()?;
             // Get source column. Unwrap is safe.
-            stentry.debug.column = caps.get(5).unwrap().as_str().parse::<u64>().unwrap();
+            stentry.debug.column = caps.get(5).unwrap().as_str().parse::<u64>()?;
 
             return Ok(stentry);
         }
@@ -277,14 +277,14 @@ impl StacktraceEntry {
             // Get address (optional).
             if let Some(address) = caps.get(1) {
                 // Unwrap is safe.
-                stentry.address = u64::from_str_radix(address.as_str(), 16).unwrap();
+                stentry.address = u64::from_str_radix(address.as_str(), 16)?;
             }
             // Get function name.
             stentry.function = caps.get(2).unwrap().as_str().trim().to_string();
             // Get source file.
             stentry.debug.file = caps.get(3).unwrap().as_str().trim().to_string();
             // Get source line. Unwrap is safe.
-            stentry.debug.line = caps.get(4).unwrap().as_str().parse::<u64>().unwrap();
+            stentry.debug.line = caps.get(4).unwrap().as_str().parse::<u64>()?;
 
             return Ok(stentry);
         }
@@ -295,7 +295,7 @@ impl StacktraceEntry {
             // Get address (optional).
             if let Some(address) = caps.get(1) {
                 // Unwrap is safe.
-                stentry.address = u64::from_str_radix(address.as_str(), 16).unwrap();
+                stentry.address = u64::from_str_radix(address.as_str(), 16)?;
             }
             // Get function name.
             stentry.function = caps.get(2).unwrap().as_str().trim().to_string();
@@ -311,7 +311,7 @@ impl StacktraceEntry {
             // Get address (optional).
             if let Some(address) = caps.get(1) {
                 // Unwrap is safe.
-                stentry.address = u64::from_str_radix(address.as_str(), 16).unwrap();
+                stentry.address = u64::from_str_radix(address.as_str(), 16)?;
             }
             // Get function name.
             stentry.function = caps.get(2).unwrap().as_str().trim().to_string();
@@ -327,7 +327,7 @@ impl StacktraceEntry {
             // Get address (optional).
             if let Some(address) = caps.get(1) {
                 // Unwrap is safe.
-                stentry.address = u64::from_str_radix(address.as_str(), 16).unwrap();
+                stentry.address = u64::from_str_radix(address.as_str(), 16)?;
             }
             // Get function name.
             stentry.function = caps.get(2).unwrap().as_str().trim().to_string();
@@ -616,13 +616,13 @@ impl<'a> GdbCommand<'a> {
         for (i, line) in lines.iter().enumerate() {
             // Find gdb-commnad-start guard and save command index.
             if let Some(caps) = re_start.captures(&line) {
-                cmd_idx = caps.get(1).unwrap().as_str().parse::<usize>().unwrap();
+                cmd_idx = caps.get(1).unwrap().as_str().parse::<usize>()?;
                 start = i;
             }
 
             // Find gdb-commnad-end guard.
             if let Some(caps) = re_end.captures(&line) {
-                let end_idx = caps.get(1).unwrap().as_str().parse::<usize>().unwrap();
+                let end_idx = caps.get(1).unwrap().as_str().parse::<usize>()?;
                 // Check if gdb-commnad-end guard matches start guard.
                 if end_idx == cmd_idx && cmd_idx < self.commands_cnt {
                     results[cmd_idx] = lines[start + 1..i].join("\n");
