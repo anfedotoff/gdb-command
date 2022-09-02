@@ -123,13 +123,9 @@ impl MappedFilesExt for MappedFiles {
             .map(|s| s.trim().to_string())
             .collect::<Vec<String>>();
 
-        let pos = hlp.iter().position(|x| x.contains("Start Addr"));
-        if pos.is_none() {
-            return Err(error::Error::MappedFilesParse(
-                format!("Couldn't find Start Addr: {}", mapping.as_ref()).to_string(),
-            ));
+        if let Some(pos) = hlp.iter().position(|x| x.contains("Start Addr")) {
+            hlp.drain(0..pos + 1);
         }
-        hlp.drain(0..pos.unwrap() + 1);
 
         let mut files = MappedFiles::new();
 
