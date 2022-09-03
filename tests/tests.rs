@@ -53,7 +53,7 @@ fn test_local_sources_stdin() {
 
     let status = Command::new("bash")
         .arg("-c")
-        .arg(format!("gcc -g -c {} -o /tmp/test_local_sources", src))
+        .arg(format!("gcc -g {} -o /tmp/test_local_sources", src))
         .status()
         .expect("failed to execute gcc");
 
@@ -78,6 +78,46 @@ fn test_local_sources_stdin() {
     assert_eq!(result[1].contains("buf[i++] = c;"), true);
 
     let _ = std::fs::remove_file("/tmp/test_local_sources");
+}
+
+#[test]
+fn test_registers() {
+    let mut args = Vec::new();
+    let src = abs_path("tests/src/test.c");
+    let input = abs_path("tests/bins/input");
+
+    let status = Command::new("bash")
+        .arg("-c")
+        .arg(format!("gcc -g {} -o /tmp/test_regs", src))
+        .status()
+        .expect("failed to execute gcc");
+
+    assert!(status.success());
+
+    let input_buf = std::path::PathBuf::from(&input);
+    args.push("/tmp/test_regs");
+    args.push(input.as_str());
+    let result = GdbCommand::new(&ExecType::Local(&args))
+        .stdin(&input_buf)
+        .r()
+        .regs()
+        .launch();
+    if result.is_err() {
+        assert!(false, "{}", result.err().unwrap());
+    }
+    let result = result.unwrap();
+
+    let regs = Registers::from_gdb(&result[0]);
+    if regs.is_err() {
+        assert!(false, "{}", regs.err().unwrap());
+    }
+    let regs = regs.unwrap();
+
+    assert_eq!(regs["rax"], 0);
+    assert_eq!(regs["rdx"], 0);
+    assert_eq!(regs["eflags"], 0x246);
+
+    let _ = std::fs::remove_file("/tmp/test_regs");
 }
 
 #[test]

@@ -45,6 +45,7 @@
 //! ```
 
 use regex::Regex;
+use std::collections::HashMap;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::path::Path;
@@ -119,7 +120,7 @@ impl MappedFilesExt for MappedFiles {
     fn from_gdb<T: AsRef<str>>(mapping: T) -> error::Result<MappedFiles> {
         let mut hlp = mapping
             .as_ref()
-            .split('\n')
+            .lines()
             .map(|s| s.trim().to_string())
             .collect::<Vec<String>>();
 
@@ -131,7 +132,7 @@ impl MappedFilesExt for MappedFiles {
 
         for x in hlp.iter() {
             let mut filevec = x
-                .split(' ')
+                .split_whitespace()
                 .map(|s| s.trim().to_string())
                 .collect::<Vec<String>>();
             filevec.retain(|x| !x.is_empty());
@@ -170,6 +171,33 @@ impl MappedFilesExt for MappedFiles {
         self.iter()
             .find(|&x| (x.start <= addr as u64) && (x.end > addr as u64))
             .cloned()
+    }
+}
+
+/// `Registers` is a map from register name to it's value.
+pub type Registers = HashMap<String, u64>;
+
+pub trait RegistersExt {
+    /// Construct `Registers` from string
+    ///
+    /// # Arguments
+    ///
+    /// * 'registers' - gdb output string with registers
+    fn from_gdb<T: AsRef<str>>(registers: T) -> error::Result<Registers>;
+}
+
+impl RegistersExt for Registers {
+    fn from_gdb<T: AsRef<str>>(registers: T) -> error::Result<Registers> {
+        let mut regs = HashMap::new();
+        let splited = registers.as_ref().lines().map(|s| s.split_whitespace());
+        for mut e in splited {
+            if let Some(reg) = e.next() {
+                if let Some(value) = e.next() {
+                    regs.insert(reg.to_string(), u64::from_str_radix(&value[2..], 16)?);
+                }
+            }
+        }
+        Ok(regs)
     }
 }
 
@@ -361,7 +389,7 @@ impl StacktraceExt for Stacktrace {
         let mut stacktrace = Stacktrace::new();
         let mut entries = trace
             .as_ref()
-            .split('\n')
+            .lines()
             .map(|s| s.trim().to_string())
             .collect::<Vec<String>>();
         entries.retain(|trace| !trace.is_empty());
@@ -594,7 +622,7 @@ impl<'a> GdbCommand<'a> {
 
         // Split stdout into lines.
         let output = String::from_utf8_lossy(&stdout);
-        let lines: Vec<String> = output.split('\n').map(|l| l.to_string()).collect();
+        let lines: Vec<String> = output.lines().map(|l| l.to_string()).collect();
 
         // Create empty results for each command.
         let mut results = Vec::new();
