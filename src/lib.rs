@@ -201,6 +201,68 @@ impl RegistersExt for Registers {
     }
 }
 
+/// `MemoryObject` represents  raw data in memory.
+#[derive(Clone, Debug)]
+pub struct MemoryObject {
+    /// Memory start address
+    pub address: u64,
+    /// Memory contents
+    pub data: Vec<u8>,
+}
+
+impl MemoryObject {
+    /// Construct `MemoryObject` from string
+    ///
+    /// # Arguments
+    ///
+    /// * 'memory' - gdb output string with memory contents (0xdeadbeaf: 0x01 0x02)
+    pub fn from_gdb<T: AsRef<str>>(memory: T) -> error::Result<MemoryObject> {
+        let mut mem = MemoryObject {
+            address: 0,
+            data: Vec::new(),
+        };
+        let mut lines = memory.as_ref().lines();
+        if let Some(first) = lines.next() {
+            // Get start address
+            let mut splited = first.split(':');
+            if let Some(address) = splited.next() {
+                mem.address =
+                    u64::from_str_radix(&address.split_whitespace().next().unwrap()[2..], 16)?;
+            } else {
+                return Err(error::Error::MemoryObjectParse(format!(
+                    "No memory address:{}",
+                    first
+                )));
+            }
+            // Get memory
+            if let Some(data) = splited.next() {
+                for b in data.split_whitespace() {
+                    mem.data.push(u8::from_str_radix(&b[2..], 16)?);
+                }
+            } else {
+                return Err(error::Error::MemoryObjectParse(format!(
+                    "No memory values:{}",
+                    first
+                )));
+            }
+
+            for line in lines {
+                if let Some(data) = line.split(':').nth(1) {
+                    for b in data.split_whitespace() {
+                        mem.data.push(u8::from_str_radix(&b[2..], 16)?);
+                    }
+                } else {
+                    return Err(error::Error::MemoryObjectParse(format!(
+                        "No memory values:{}",
+                        first
+                    )));
+                }
+            }
+        }
+        Ok(mem)
+    }
+}
+
 /// `StacktraceEntry` struct represents the information about one line of the stack trace.
 #[derive(Clone, Debug, Default)]
 pub struct StacktraceEntry {
@@ -598,7 +660,7 @@ impl<'a> GdbCommand<'a> {
         self
     }
 
-    /// List print lines from source file
+    /// Print lines from source file
     ///
     /// # Arguments
     ///
@@ -610,6 +672,17 @@ impl<'a> GdbCommand<'a> {
         } else {
             self.ex("list")
         }
+    }
+
+    /// Get memory contents (string of hex bytes)
+    ///
+    /// # Arguments
+    ///
+    /// * `expr` - expression that represents the start memory address.
+    ///
+    /// * `size` - size of memory in bytes to get.
+    pub fn mem<T: AsRef<str>>(&mut self, expr: T, size: usize) -> &'a mut GdbCommand {
+        self.ex(format!("x/{}bx {}", size, expr.as_ref()))
     }
 
     /// Execute gdb and get result for each command.

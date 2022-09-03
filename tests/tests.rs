@@ -121,6 +121,48 @@ fn test_registers() {
 }
 
 #[test]
+fn test_memory() {
+    let mut args = Vec::new();
+    let src = abs_path("tests/src/test.c");
+    let input = abs_path("tests/bins/input");
+
+    let status = Command::new("bash")
+        .arg("-c")
+        .arg(format!("gcc -g {} -o /tmp/test_mem", src))
+        .status()
+        .expect("failed to execute gcc");
+
+    assert!(status.success());
+
+    let input_buf = std::path::PathBuf::from(&input);
+    args.push("/tmp/test_mem");
+    args.push(input.as_str());
+    let result = GdbCommand::new(&ExecType::Local(&args))
+        .stdin(&input_buf)
+        .bmain()
+        .r()
+        .mem("$pc", 40)
+        .c()
+        .launch();
+    if result.is_err() {
+        assert!(false, "{}", result.err().unwrap());
+    }
+    let result = result.unwrap();
+
+    let mem = MemoryObject::from_gdb(&result[0]);
+    if mem.is_err() {
+        assert!(false, "{}", mem.err().unwrap());
+    }
+    let mem = mem.unwrap();
+
+    assert_eq!(mem.data[0], 0x64);
+    assert_eq!(mem.data[1], 0x48);
+    assert_eq!(mem.data[2], 0x8b);
+
+    let _ = std::fs::remove_file("/tmp/test_mem");
+}
+
+#[test]
 fn test_struct_mapped_files() {
     let bin = abs_path("tests/bins/test_abort");
     let result = GdbCommand::new(&ExecType::Local(&[&bin, "A"]))

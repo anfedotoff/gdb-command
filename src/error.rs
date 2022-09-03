@@ -14,10 +14,12 @@ pub enum Error {
     NoFile(String),
     /// An IO based error
     IO(io::Error),
-    /// Error parsing stacktrace
+    /// Error parsing stack trace
     StacktraceParse(String),
     /// Error parsing mapped files
     MappedFilesParse(String),
+    /// Error parsing memory object.
+    MemoryObjectParse(String),
     /// An ParseInt based error
     IntParse(std::num::ParseIntError),
 }
@@ -31,6 +33,7 @@ impl error::Error for Error {
             Error::NoFile(_) => None,
             Error::StacktraceParse(_) => None,
             Error::MappedFilesParse(_) => None,
+            Error::MemoryObjectParse(_) => None,
         }
     }
 }
@@ -56,6 +59,9 @@ impl fmt::Display for Error {
             Error::NoFile(ref msg) => write!(fmt, "File not found: {}", msg),
             Error::StacktraceParse(ref msg) => write!(fmt, "Error parsing stack trace: {}", msg),
             Error::MappedFilesParse(ref msg) => write!(fmt, "Error parsing mapped files: {}", msg),
+            Error::MemoryObjectParse(ref msg) => {
+                write!(fmt, "Error parsing memory object: {}", msg)
+            }
         }
     }
 }
