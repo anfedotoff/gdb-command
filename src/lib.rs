@@ -201,7 +201,7 @@ impl RegistersExt for Registers {
     }
 }
 
-/// `MemoryObject` represents  raw data in memory.
+/// `MemoryObject` represents raw data in memory.
 #[derive(Clone, Debug)]
 pub struct MemoryObject {
     /// Memory start address
@@ -224,32 +224,29 @@ impl MemoryObject {
         let mut lines = memory.as_ref().lines();
         if let Some(first) = lines.next() {
             // Get start address
-            let mut splited = first.split(':');
-            if let Some(address) = splited.next() {
-                mem.address =
-                    u64::from_str_radix(&address.split_whitespace().next().unwrap()[2..], 16)?;
-            } else {
-                return Err(error::Error::MemoryObjectParse(format!(
-                    "No memory address:{}",
-                    first
-                )));
-            }
-            // Get memory
-            if let Some(data) = splited.next() {
+            if let Some((address, data)) = first.split_once(':') {
+                let address_part = address.split_whitespace().next().unwrap();
+                mem.address = u64::from_str_radix(address_part.get(2..).unwrap_or(&""), 16)?;
+
+                // Get memory
                 for b in data.split_whitespace() {
                     mem.data.push(u8::from_str_radix(&b[2..], 16)?);
                 }
             } else {
                 return Err(error::Error::MemoryObjectParse(format!(
-                    "No memory values:{}",
+                    "Coudn't parse memory string {}",
                     first
                 )));
             }
 
             for line in lines {
-                if let Some(data) = line.split(':').nth(1) {
+                if let Some((_, data)) = line.split_once(':') {
                     for b in data.split_whitespace() {
-                        mem.data.push(u8::from_str_radix(&b[2..], 16)?);
+                        let address_part = b.split_whitespace().next().unwrap();
+                        mem.data.push(u8::from_str_radix(
+                            address_part.get(2..).unwrap_or(&""),
+                            16,
+                        )?);
                     }
                 } else {
                     return Err(error::Error::MemoryObjectParse(format!(

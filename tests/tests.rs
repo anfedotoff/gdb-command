@@ -158,6 +158,7 @@ fn test_memory() {
     assert_eq!(mem.data[0], 0x64);
     assert_eq!(mem.data[1], 0x48);
     assert_eq!(mem.data[2], 0x8b);
+    assert_eq!(mem.data.len(), 40);
 
     let _ = std::fs::remove_file("/tmp/test_mem");
 }
