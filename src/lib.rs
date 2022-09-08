@@ -193,7 +193,10 @@ impl RegistersExt for Registers {
         for mut e in splited {
             if let Some(reg) = e.next() {
                 if let Some(value) = e.next() {
-                    regs.insert(reg.to_string(), u64::from_str_radix(&value[2..], 16)?);
+                    regs.insert(
+                        reg.to_string(),
+                        u64::from_str_radix(value.get(2..).unwrap_or(&""), 16)?,
+                    );
                 }
             }
         }
@@ -230,11 +233,12 @@ impl MemoryObject {
 
                 // Get memory
                 for b in data.split_whitespace() {
-                    mem.data.push(u8::from_str_radix(&b[2..], 16)?);
+                    mem.data
+                        .push(u8::from_str_radix(b.get(2..).unwrap_or(&""), 16)?);
                 }
             } else {
                 return Err(error::Error::MemoryObjectParse(format!(
-                    "Coudn't parse memory string {}",
+                    "Coudn't parse memory string: {}",
                     first
                 )));
             }
@@ -242,16 +246,13 @@ impl MemoryObject {
             for line in lines {
                 if let Some((_, data)) = line.split_once(':') {
                     for b in data.split_whitespace() {
-                        let address_part = b.split_whitespace().next().unwrap();
-                        mem.data.push(u8::from_str_radix(
-                            address_part.get(2..).unwrap_or(&""),
-                            16,
-                        )?);
+                        mem.data
+                            .push(u8::from_str_radix(b.get(2..).unwrap_or(&""), 16)?);
                     }
                 } else {
                     return Err(error::Error::MemoryObjectParse(format!(
-                        "No memory values:{}",
-                        first
+                        "No memory values: {}",
+                        line
                     )));
                 }
             }
