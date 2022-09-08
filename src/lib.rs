@@ -45,6 +45,7 @@
 //! ```
 
 use regex::Regex;
+use std::collections::HashMap;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::path::Path;
@@ -119,7 +120,7 @@ impl MappedFilesExt for MappedFiles {
     fn from_gdb<T: AsRef<str>>(mapping: T) -> error::Result<MappedFiles> {
         let mut hlp = mapping
             .as_ref()
-            .split('\n')
+            .lines()
             .map(|s| s.trim().to_string())
             .collect::<Vec<String>>();
 
@@ -131,7 +132,7 @@ impl MappedFilesExt for MappedFiles {
 
         for x in hlp.iter() {
             let mut filevec = x
-                .split(' ')
+                .split_whitespace()
                 .map(|s| s.trim().to_string())
                 .collect::<Vec<String>>();
             filevec.retain(|x| !x.is_empty());
@@ -170,6 +171,93 @@ impl MappedFilesExt for MappedFiles {
         self.iter()
             .find(|&x| (x.start <= addr as u64) && (x.end > addr as u64))
             .cloned()
+    }
+}
+
+/// `Registers` is a map from register name to it's value.
+pub type Registers = HashMap<String, u64>;
+
+pub trait RegistersExt {
+    /// Construct `Registers` from string
+    ///
+    /// # Arguments
+    ///
+    /// * 'registers' - gdb output string with registers
+    fn from_gdb<T: AsRef<str>>(registers: T) -> error::Result<Registers>;
+}
+
+impl RegistersExt for Registers {
+    fn from_gdb<T: AsRef<str>>(registers: T) -> error::Result<Registers> {
+        let mut regs = HashMap::new();
+        let splited = registers.as_ref().lines().map(|s| s.split_whitespace());
+        for mut e in splited {
+            if let Some(reg) = e.next() {
+                if let Some(value) = e.next() {
+                    regs.insert(
+                        reg.to_string(),
+                        u64::from_str_radix(value.get(2..).unwrap_or(&""), 16)?,
+                    );
+                }
+            }
+        }
+        Ok(regs)
+    }
+}
+
+/// `MemoryObject` represents raw data in memory.
+#[derive(Clone, Debug)]
+pub struct MemoryObject {
+    /// Memory start address
+    pub address: u64,
+    /// Memory contents
+    pub data: Vec<u8>,
+}
+
+impl MemoryObject {
+    /// Construct `MemoryObject` from string
+    ///
+    /// # Arguments
+    ///
+    /// * 'memory' - gdb output string with memory contents (0xdeadbeaf: 0x01 0x02)
+    pub fn from_gdb<T: AsRef<str>>(memory: T) -> error::Result<MemoryObject> {
+        let mut mem = MemoryObject {
+            address: 0,
+            data: Vec::new(),
+        };
+        let mut lines = memory.as_ref().lines();
+        if let Some(first) = lines.next() {
+            // Get start address
+            if let Some((address, data)) = first.split_once(':') {
+                let address_part = address.split_whitespace().next().unwrap();
+                mem.address = u64::from_str_radix(address_part.get(2..).unwrap_or(&""), 16)?;
+
+                // Get memory
+                for b in data.split_whitespace() {
+                    mem.data
+                        .push(u8::from_str_radix(b.get(2..).unwrap_or(&""), 16)?);
+                }
+            } else {
+                return Err(error::Error::MemoryObjectParse(format!(
+                    "Coudn't parse memory string: {}",
+                    first
+                )));
+            }
+
+            for line in lines {
+                if let Some((_, data)) = line.split_once(':') {
+                    for b in data.split_whitespace() {
+                        mem.data
+                            .push(u8::from_str_radix(b.get(2..).unwrap_or(&""), 16)?);
+                    }
+                } else {
+                    return Err(error::Error::MemoryObjectParse(format!(
+                        "No memory values: {}",
+                        line
+                    )));
+                }
+            }
+        }
+        Ok(mem)
     }
 }
 
@@ -361,7 +449,7 @@ impl StacktraceExt for Stacktrace {
         let mut stacktrace = Stacktrace::new();
         let mut entries = trace
             .as_ref()
-            .split('\n')
+            .lines()
             .map(|s| s.trim().to_string())
             .collect::<Vec<String>>();
         entries.retain(|trace| !trace.is_empty());
@@ -570,7 +658,7 @@ impl<'a> GdbCommand<'a> {
         self
     }
 
-    /// List print lines from source file
+    /// Print lines from source file
     ///
     /// # Arguments
     ///
@@ -584,6 +672,17 @@ impl<'a> GdbCommand<'a> {
         }
     }
 
+    /// Get memory contents (string of hex bytes)
+    ///
+    /// # Arguments
+    ///
+    /// * `expr` - expression that represents the start memory address.
+    ///
+    /// * `size` - size of memory in bytes to get.
+    pub fn mem<T: AsRef<str>>(&mut self, expr: T, size: usize) -> &'a mut GdbCommand {
+        self.ex(format!("x/{}bx {}", size, expr.as_ref()))
+    }
+
     /// Execute gdb and get result for each command.
     /// # Return value.
     ///
@@ -594,7 +693,7 @@ impl<'a> GdbCommand<'a> {
 
         // Split stdout into lines.
         let output = String::from_utf8_lossy(&stdout);
-        let lines: Vec<String> = output.split('\n').map(|l| l.to_string()).collect();
+        let lines: Vec<String> = output.lines().map(|l| l.to_string()).collect();
 
         // Create empty results for each command.
         let mut results = Vec::new();
