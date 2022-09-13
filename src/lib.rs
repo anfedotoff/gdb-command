@@ -53,6 +53,7 @@ pub mod error;
 pub mod mappings;
 pub mod memory;
 pub mod registers;
+pub mod siginfo;
 pub mod stacktrace;
 
 /// Type of `gdb` execution: Remote attach to process, local run with args, core.
@@ -265,6 +266,11 @@ impl<'a> GdbCommand<'a> {
     /// * `size` - size of memory in bytes to get.
     pub fn mem<T: AsRef<str>>(&mut self, expr: T, size: usize) -> &'a mut GdbCommand {
         self.ex(format!("x/{}bx {}", size, expr.as_ref()))
+    }
+
+    /// Add command to get siginfo
+    pub fn siginfo(&mut self) -> &'a mut GdbCommand {
+        self.ex("p/x $_siginfo")
     }
 
     /// Execute gdb and get result for each command.
