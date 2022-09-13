@@ -1,3 +1,7 @@
+use gdb_command::mappings::{MappedFiles, MappedFilesExt};
+use gdb_command::memory::MemoryObject;
+use gdb_command::registers::{Registers, RegistersExt};
+use gdb_command::stacktrace::{Stacktrace, StacktraceExt};
 use gdb_command::*;
 
 use std::process::Command;
