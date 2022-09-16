@@ -24,13 +24,19 @@ impl MemoryObject {
         if let Some(first) = lines.next() {
             // Get start address
             if let Some((address, data)) = first.split_once(':') {
-                let address_part = address.split_whitespace().next().unwrap();
-                mem.address = u64::from_str_radix(address_part.get(2..).unwrap_or(&""), 16)?;
+                if let Some(address_part) = address.split_whitespace().next() {
+                    mem.address = u64::from_str_radix(address_part.get(2..).unwrap_or(&""), 16)?;
 
-                // Get memory
-                for b in data.split_whitespace() {
-                    mem.data
-                        .push(u8::from_str_radix(b.get(2..).unwrap_or(&""), 16)?);
+                    // Get memory
+                    for b in data.split_whitespace() {
+                        mem.data
+                            .push(u8::from_str_radix(b.get(2..).unwrap_or(&""), 16)?);
+                    }
+                } else {
+                    return Err(error::Error::MemoryObjectParse(format!(
+                        "Coudn't parse memory string: {}",
+                        first
+                    )));
                 }
             } else {
                 return Err(error::Error::MemoryObjectParse(format!(
