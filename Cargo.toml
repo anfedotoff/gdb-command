@@ -2,7 +2,7 @@
 name = "gdb-command"
 version = "0.5.2"
 authors = ["Andrey Fedotov  <fedotoff@ispras.ru>", "Alexey Vishnyakov  <vishnya@ispras.ru>", "Avgor46"]
-edition = "2018"
+edition = "2021"
 description = "Wrapper for gdb in batch mode."
 readme = "README.md"
 keywords = [ "gdb", "backtrace", "stacktrace", "debugging", "coredump"]
