@@ -96,8 +96,8 @@ impl MappedFilesExt for MappedFiles {
                 start: u64::from_str_radix(filevec[0].get(2..).unwrap_or(&filevec[0]), 16)?,
                 end: u64::from_str_radix(filevec[1].get(2..).unwrap_or(&filevec[1]), 16)?,
                 offset: u64::from_str_radix(filevec[3].get(2..).unwrap_or(&filevec[3]), 16)?,
-                name: if filevec.len() == 5 {
-                    filevec[4].clone()
+                name: if filevec.len() > 4 {
+                    filevec.last().unwrap().clone()
                 } else {
                     String::new()
                 },
