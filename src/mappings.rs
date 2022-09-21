@@ -78,31 +78,40 @@ impl MappedFilesExt for MappedFiles {
             hlp.drain(0..pos + 1);
         }
 
-        let mut files = MappedFiles::new();
-
+        // Split mapped files info in columns.
+        let mut info = Vec::new();
+        let mut name_idx = 0;
         for x in hlp.iter() {
-            let mut filevec = x
+            let filevec = x
                 .split_whitespace()
                 .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
                 .collect::<Vec<String>>();
-            filevec.retain(|x| !x.is_empty());
             if filevec.len() < 4 {
                 return Err(error::Error::MappedFilesParse(format!(
                     "Expected at least 4 columns in {}",
                     x.to_string()
                 )));
             }
-            let hlp = File {
-                start: u64::from_str_radix(filevec[0].get(2..).unwrap_or(&filevec[0]), 16)?,
-                end: u64::from_str_radix(filevec[1].get(2..).unwrap_or(&filevec[1]), 16)?,
-                offset: u64::from_str_radix(filevec[3].get(2..).unwrap_or(&filevec[3]), 16)?,
-                name: if filevec.len() > 4 {
-                    filevec.last().unwrap().clone()
-                } else {
-                    String::new()
-                },
+
+            // Get index for module name. Different gdb versions have varying
+            // number of fields.
+            name_idx = name_idx.max(filevec.len() - 1);
+
+            info.push(filevec);
+        }
+
+        let mut files = MappedFiles::new();
+
+        // Parse and collect mapped files info.
+        for x in info.iter() {
+            let f = File {
+                start: u64::from_str_radix(x[0].get(2..).unwrap_or(&x[0]), 16)?,
+                end: u64::from_str_radix(x[1].get(2..).unwrap_or(&x[1]), 16)?,
+                offset: u64::from_str_radix(x[3].get(2..).unwrap_or(&x[3]), 16)?,
+                name: x.get(name_idx).unwrap_or(&String::new()).clone(),
             };
-            files.push(hlp.clone());
+            files.push(f);
         }
 
         Ok(files)
