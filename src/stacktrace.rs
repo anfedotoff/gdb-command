@@ -207,7 +207,9 @@ impl StacktraceExt for Stacktrace {
         self.iter_mut().for_each(|x| {
             if let Some(y) = mappings.find(x.address) {
                 x.offset = x.address - y.start + y.offset;
-                x.module = y.name;
+                if !y.name.is_empty() {
+                    x.module = y.name;
+                }
             }
         });
     }
