@@ -16,6 +16,8 @@ pub enum Error {
     IO(io::Error),
     /// Error parsing stack trace
     StacktraceParse(String),
+    /// Error parsing siginfo
+    SiginfoParse(String),
     /// Error parsing mapped files
     MappedFilesParse(String),
     /// Error parsing memory object.
@@ -32,6 +34,7 @@ impl error::Error for Error {
             Error::ParseOutput(_) => None,
             Error::NoFile(_) => None,
             Error::StacktraceParse(_) => None,
+            Error::SiginfoParse(_) => None,
             Error::MappedFilesParse(_) => None,
             Error::MemoryObjectParse(_) => None,
         }
@@ -58,6 +61,7 @@ impl fmt::Display for Error {
             Error::ParseOutput(ref msg) => write!(fmt, "Gdb parsing output error: {}", msg),
             Error::NoFile(ref msg) => write!(fmt, "File not found: {}", msg),
             Error::StacktraceParse(ref msg) => write!(fmt, "Error parsing stack trace: {}", msg),
+            Error::SiginfoParse(ref msg) => write!(fmt, "Error parsing siginfo: {}", msg),
             Error::MappedFilesParse(ref msg) => write!(fmt, "Error parsing mapped files: {}", msg),
             Error::MemoryObjectParse(ref msg) => {
                 write!(fmt, "Error parsing memory object: {}", msg)

@@ -31,8 +31,12 @@ impl Siginfo {
                 si_addr: u64::from_str_radix(caps.get(4).unwrap().as_str(), 16)?,
             })
         } else {
-            Err(error::Error::StacktraceParse(
-                format!("Couldn't parse siginfo: {}", info.as_ref()).to_string(),
+            Err(error::Error::SiginfoParse(
+                format!(
+                    "Siginfo string: {} doesn't match regex template",
+                    info.as_ref()
+                )
+                .to_string(),
             ))
         }
     }
