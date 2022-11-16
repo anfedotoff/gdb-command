@@ -15,11 +15,13 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+    - name: Code Style
+      run: cargo fmt -- --check
+    - name: Clippy
+      run: RUSTFLAGS="-Dwarnings" cargo clippy --all
     - name: Build
       run: cargo build --verbose
     - name: Run tests
       run: |
         sudo apt update && sudo apt install -y gdb
         cargo test --verbose
-    - name: Code Style
-      run: cargo fmt -- --check
