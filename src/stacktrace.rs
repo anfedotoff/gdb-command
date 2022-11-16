@@ -157,9 +157,10 @@ impl StacktraceEntry {
             return Ok(stentry);
         }
 
-        return Err(error::Error::StacktraceParse(
-            format!("Couldn't parse stack trace entry: {}", entry.as_ref()).to_string(),
-        ));
+        Err(error::Error::StacktraceParse(format!(
+            "Couldn't parse stack trace entry: {}",
+            entry.as_ref()
+        )))
     }
 }
 

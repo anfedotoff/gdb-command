@@ -25,12 +25,12 @@ impl MemoryObject {
             // Get start address
             if let Some((address, data)) = first.split_once(':') {
                 if let Some(address_part) = address.split_whitespace().next() {
-                    mem.address = u64::from_str_radix(address_part.get(2..).unwrap_or(&""), 16)?;
+                    mem.address = u64::from_str_radix(address_part.get(2..).unwrap_or(""), 16)?;
 
                     // Get memory
                     for b in data.split_whitespace() {
                         mem.data
-                            .push(u8::from_str_radix(b.get(2..).unwrap_or(&""), 16)?);
+                            .push(u8::from_str_radix(b.get(2..).unwrap_or(""), 16)?);
                     }
                 } else {
                     return Err(error::Error::MemoryObjectParse(format!(
@@ -49,7 +49,7 @@ impl MemoryObject {
                 if let Some((_, data)) = line.split_once(':') {
                     for b in data.split_whitespace() {
                         mem.data
-                            .push(u8::from_str_radix(b.get(2..).unwrap_or(&""), 16)?);
+                            .push(u8::from_str_radix(b.get(2..).unwrap_or(""), 16)?);
                     }
                 } else {
                     return Err(error::Error::MemoryObjectParse(format!(

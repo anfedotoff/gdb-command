@@ -124,16 +124,15 @@ impl<'a> GdbCommand<'a> {
     /// Run gdb with provided commands and return raw stdout.
     pub fn raw(&self) -> error::Result<Vec<u8>> {
         let mut gdb = Command::new("gdb");
-        let mut gdb_args = Vec::new();
-
-        // Set quiet mode and confirm off
-        gdb_args.push("--batch".to_string());
-        gdb_args.push("-ex".to_string());
-        gdb_args.push("set backtrace limit 2000".to_string());
-        gdb_args.push("-ex".to_string());
-        gdb_args.push("set disassembly-flavor intel".to_string());
-        gdb_args.push("-ex".to_string());
-        gdb_args.push("set filename-display absolute".to_string());
+        let mut gdb_args: Vec<String> = vec![
+            "--batch".to_string(),
+            "-ex".to_string(),
+            "set backtrace limit 2000".to_string(),
+            "-ex".to_string(),
+            "set disassembly-flavor intel".to_string(),
+            "-ex".to_string(),
+            "set filename-display absolute".to_string(),
+        ];
 
         // Add parameters according to execution
         match &self.exec_type {
@@ -295,13 +294,13 @@ impl<'a> GdbCommand<'a> {
         let mut cmd_idx = 0;
         for (i, line) in lines.iter().enumerate() {
             // Find gdb-commnad-start guard and save command index.
-            if let Some(caps) = re_start.captures(&line) {
+            if let Some(caps) = re_start.captures(line) {
                 cmd_idx = caps.get(1).unwrap().as_str().parse::<usize>()?;
                 start = i;
             }
 
             // Find gdb-commnad-end guard.
-            if let Some(caps) = re_end.captures(&line) {
+            if let Some(caps) = re_end.captures(line) {
                 let end_idx = caps.get(1).unwrap().as_str().parse::<usize>()?;
                 // Check if gdb-commnad-end guard matches start guard.
                 if end_idx == cmd_idx && cmd_idx < self.commands_cnt {

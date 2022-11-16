@@ -23,7 +23,7 @@ impl RegistersExt for Registers {
                 if let Some(value) = e.next() {
                     regs.insert(
                         reg.to_string(),
-                        u64::from_str_radix(value.get(2..).unwrap_or(&""), 16)?,
+                        u64::from_str_radix(value.get(2..).unwrap_or(""), 16)?,
                     );
                 }
             }

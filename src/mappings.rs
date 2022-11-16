@@ -90,7 +90,7 @@ impl MappedFilesExt for MappedFiles {
             if filevec.len() < 4 {
                 return Err(error::Error::MappedFilesParse(format!(
                     "Expected at least 4 columns in {}",
-                    x.to_string()
+                    x
                 )));
             }
 
