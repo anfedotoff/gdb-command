@@ -24,6 +24,8 @@ pub enum Error {
     MemoryObjectParse(String),
     /// An ParseInt based error
     IntParse(std::num::ParseIntError),
+    /// GDB launch error.
+    Gdb(String),
 }
 
 impl error::Error for Error {
@@ -37,6 +39,7 @@ impl error::Error for Error {
             Error::SiginfoParse(_) => None,
             Error::MappedFilesParse(_) => None,
             Error::MemoryObjectParse(_) => None,
+            Error::Gdb(_) => None,
         }
     }
 }
@@ -66,6 +69,7 @@ impl fmt::Display for Error {
             Error::MemoryObjectParse(ref msg) => {
                 write!(fmt, "Error parsing memory object: {}", msg)
             }
+            Error::Gdb(ref msg) => write!(fmt, "Failed to launch GDB: {}", msg),
         }
     }
 }

@@ -168,7 +168,11 @@ impl<'a> GdbCommand<'a> {
         }
 
         // Run gdb and get output
-        let mut output = gdb.args(&gdb_args).output()?;
+        let output = gdb.args(&gdb_args).output();
+        if let Err(e) = output {
+            return Err(error::Error::Gdb(e.to_string()));
+        }
+        let mut output = output.unwrap();
         output.stdout.append(&mut output.stderr.clone());
         Ok(output.stdout)
     }
