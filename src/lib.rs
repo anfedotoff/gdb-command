@@ -276,7 +276,7 @@ impl<'a> GdbCommand<'a> {
         self.ex("p/x $_siginfo")
     }
 
-    /// Execute gdb and get result for each command.
+    /// Execute gdb and get result without raw stderr
     /// # Return value.
     ///
     /// The return value is a vector of strings for each command executed.
@@ -286,6 +286,33 @@ impl<'a> GdbCommand<'a> {
 
         // Split stdout into lines.
         let output = String::from_utf8_lossy(&stdout);
+
+        self.gdb_result(&output)
+    }
+
+    /// Execute gdb and get result with raw stderr
+    /// # Return value.
+    ///
+    /// The return value is a vector of strings for each command executed
+    /// and a stderr at the last element of the vector
+    pub fn launch_with_stderr(&self) -> error::Result<Vec<String>> {
+        // Get raw output from Gdb.
+        let stdout = self.raw()?;
+
+        // Split stdout into lines.
+        let output = String::from_utf8_lossy(&stdout);
+
+        let mut results = self.gdb_result(&output)?;
+        results.push(output.to_string());
+
+        Ok(results)
+    }
+
+    /// Get result for each command.
+    /// # Return value.
+    ///
+    /// The return value is a vector of strings for each command executed.
+    fn gdb_result(&self, output: &str) -> error::Result<Vec<String>> {
         let lines: Vec<String> = output.lines().map(|l| l.to_string()).collect();
 
         // Create empty results for each command.
