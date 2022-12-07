@@ -294,7 +294,7 @@ impl<'a> GdbCommand<'a> {
     /// # Return value.
     ///
     /// The return value is a vector of strings for each command executed.
-    fn parse(&self, output: &str) -> error::Result<Vec<String>> {
+    pub fn parse(&self, output: &str) -> error::Result<Vec<String>> {
         let lines: Vec<String> = output.lines().map(|l| l.to_string()).collect();
 
         // Create empty results for each command.
