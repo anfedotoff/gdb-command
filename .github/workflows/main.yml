@@ -25,3 +25,4 @@ jobs:
       run: |
         sudo apt update && sudo apt install -y gdb
         cargo test --verbose
+        cargo test test_core -- --ignored

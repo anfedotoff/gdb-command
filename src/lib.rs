@@ -276,7 +276,7 @@ impl<'a> GdbCommand<'a> {
         self.ex("p/x $_siginfo")
     }
 
-    /// Execute gdb and get result from raw stdout
+    /// Execute gdb and get result for each command.
     /// # Return value.
     ///
     /// The return value is a vector of strings for each command executed.
@@ -290,7 +290,7 @@ impl<'a> GdbCommand<'a> {
         self.parse(output)
     }
 
-    /// Result for each executed gdb command from raw gdb output.
+    /// Parse raw gdb output.
     /// # Return value.
     ///
     /// The return value is a vector of strings for each command executed.
