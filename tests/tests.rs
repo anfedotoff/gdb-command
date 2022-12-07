@@ -119,7 +119,6 @@ fn test_registers() {
     let regs = regs.unwrap();
 
     assert_eq!(regs["rax"], 0);
-    assert_eq!(regs["rdx"], 0);
     assert_eq!(regs["eflags"], 0x246);
 
     let _ = std::fs::remove_file("/tmp/test_regs");
@@ -350,6 +349,7 @@ fn test_stacktrace_structs() {
 }
 
 #[test]
+#[ignore]
 fn test_core() {
     let bin = abs_path("tests/bins/test_canary");
     let core = abs_path("tests/bins/core.test_canary");
