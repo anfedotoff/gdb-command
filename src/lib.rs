@@ -68,7 +68,7 @@ pub enum ExecType<'a> {
 }
 
 /// Struct contains information about arguments for `gdb` to run.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct GdbCommand<'a> {
     /// Gdb execution type.
     exec_type: ExecType<'a>,
@@ -287,15 +287,15 @@ impl<'a> GdbCommand<'a> {
         // Split stdout into lines.
         let output = String::from_utf8_lossy(&stdout);
 
-        self.parse(&output)
+        self.parse(output)
     }
 
     /// Result for each executed gdb command from raw gdb output.
     /// # Return value.
     ///
     /// The return value is a vector of strings for each command executed.
-    pub fn parse(&self, output: &str) -> error::Result<Vec<String>> {
-        let lines: Vec<String> = output.lines().map(|l| l.to_string()).collect();
+    pub fn parse<T: AsRef<str>>(&self, output: T) -> error::Result<Vec<String>> {
+        let lines: Vec<String> = output.as_ref().lines().map(|l| l.to_string()).collect();
 
         // Create empty results for each command.
         let mut results = Vec::new();
