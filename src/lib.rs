@@ -68,7 +68,7 @@ pub enum ExecType<'a> {
 }
 
 /// Struct contains information about arguments for `gdb` to run.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct GdbCommand<'a> {
     /// Gdb execution type.
     exec_type: ExecType<'a>,
