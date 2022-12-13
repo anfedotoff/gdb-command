@@ -8,7 +8,7 @@ use gdb_command::*;
 use std::process::Command;
 
 /// Returns an absolute path for relative path.
-fn abs_path<'a>(rpath: &'a str) -> String {
+fn abs_path(rpath: &str) -> String {
     use std::path::PathBuf;
 
     // Define paths.
@@ -24,30 +24,30 @@ fn abs_path<'a>(rpath: &'a str) -> String {
 fn test_local_canary() {
     let mut args = Vec::new();
     let bin = abs_path("tests/bins/test_canary");
-    let a = std::iter::repeat("A").take(200).collect::<String>();
+    let a = "A".repeat(200);
     args.push(bin.as_str());
     args.push(a.as_str());
     let result = GdbCommand::new(&ExecType::Local(&args)).r().bt().launch();
     if result.is_err() {
-        assert!(false, "{}", result.err().unwrap());
+        panic!("{}", result.err().unwrap());
     }
     let result = result.unwrap();
-    assert_eq!(result[0].contains("__stack_chk_fail"), true);
+    assert!(result[0].contains("__stack_chk_fail"));
 }
 
 #[test]
 fn test_local_safe_func() {
     let mut args = Vec::new();
     let bin = abs_path("tests/bins/test_safeFunc");
-    let a = std::iter::repeat("A").take(200).collect::<String>();
+    let a = "A".repeat(200);
     args.push(bin.as_str());
     args.push(a.as_str());
     let result = GdbCommand::new(&ExecType::Local(&args)).r().bt().launch();
     if result.is_err() {
-        assert!(false, "{}", result.err().unwrap());
+        panic!("{}", result.err().unwrap());
     }
     let result = result.unwrap();
-    assert_eq!(result[0].contains("__strcpy_chk"), true);
+    assert!(result[0].contains("__strcpy_chk"));
 }
 
 #[test]
@@ -76,11 +76,11 @@ fn test_local_sources_stdin() {
         .c()
         .launch();
     if result.is_err() {
-        assert!(false, "{}", result.err().unwrap());
+        panic!("{}", result.err().unwrap());
     }
     let result = result.unwrap();
-    assert_eq!(result[0].contains("test.c"), true);
-    assert_eq!(result[1].contains("buf[i++] = c;"), true);
+    assert!(result[0].contains("test.c"));
+    assert!(result[1].contains("buf[i++] = c;"));
 
     let _ = std::fs::remove_file("/tmp/test_local_sources");
 }
@@ -108,13 +108,13 @@ fn test_registers() {
         .regs()
         .launch();
     if result.is_err() {
-        assert!(false, "{}", result.err().unwrap());
+        panic!("{}", result.err().unwrap());
     }
     let result = result.unwrap();
 
     let regs = Registers::from_gdb(&result[0]);
     if regs.is_err() {
-        assert!(false, "{}", regs.err().unwrap());
+        panic!("{}", regs.err().unwrap());
     }
     let regs = regs.unwrap();
 
@@ -147,17 +147,16 @@ fn test_siginfo() {
         .siginfo()
         .launch();
     if result.is_err() {
-        assert!(false, "{}", result.err().unwrap());
+        panic!("{}", result.err().unwrap());
     }
     let result = result.unwrap();
 
     let s_info = Siginfo::from_gdb(&result[0]);
     if s_info.is_err() {
-        assert!(false, "{}", s_info.err().unwrap());
+        panic!("{}", s_info.err().unwrap());
     }
     let s_info = s_info.unwrap();
 
-    println!("{}", result[0]);
     assert_eq!(s_info.si_signo, 0x6);
     assert_eq!(s_info.si_errno, 0);
     assert_eq!(s_info.si_code, 0xfffffffa);
@@ -190,13 +189,13 @@ fn test_memory() {
         .c()
         .launch();
     if result.is_err() {
-        assert!(false, "{}", result.err().unwrap());
+        panic!("{}", result.err().unwrap());
     }
     let result = result.unwrap();
 
     let mem = MemoryObject::from_gdb(&result[0]);
     if mem.is_err() {
-        assert!(false, "{}", mem.err().unwrap());
+        panic!("{}", mem.err().unwrap());
     }
     let mem = mem.unwrap();
 
@@ -216,39 +215,27 @@ fn test_struct_mapped_files() {
         .mappings()
         .launch();
     if result.is_err() {
-        assert!(false, "{}", result.err().unwrap());
+        panic!("{}", result.err().unwrap());
     }
     let result = result.unwrap();
 
     let prmap = MappedFiles::from_gdb(&result[0]);
     if prmap.is_err() {
-        assert!(false, "{}", prmap.err().unwrap());
+        panic!("{}", prmap.err().unwrap());
     }
     let prmap = prmap.unwrap();
 
-    assert_eq!(
-        result[0].contains(format!("0x{:x}", prmap[prmap.len() - 1].start).as_str()),
-        true
-    );
-    assert_eq!(
-        result[0].contains(format!("0x{:x}", prmap[prmap.len() - 1].end).as_str()),
-        true
-    );
-    assert_eq!(
-        result[0].contains(format!("0x{:x}", prmap[prmap.len() - 1].offset).as_str()),
-        true
-    );
+    assert!(result[0].contains(format!("0x{:x}", prmap[prmap.len() - 1].start).as_str()));
+    assert!(result[0].contains(format!("0x{:x}", prmap[prmap.len() - 1].end).as_str()));
+    assert!(result[0].contains(format!("0x{:x}", prmap[prmap.len() - 1].offset).as_str()));
     if prmap[prmap.len() - 1].name != "No_file" {
-        assert_eq!(
-            result[0].contains(&prmap[prmap.len() - 1].name.clone()),
-            true
-        );
+        assert!(result[0].contains(&prmap[prmap.len() - 1].name.clone()));
     }
 
     // Testing method 'find'
     let ffile = prmap.find(prmap[prmap.len() - 1].start + 2);
     if ffile.is_none() {
-        assert!(false, "File not found!");
+        panic!("File not found!");
     }
     let ffile = ffile.unwrap();
 
@@ -265,27 +252,24 @@ fn test_stacktrace_structs() {
         .mappings()
         .launch();
     if result.is_err() {
-        assert!(false, "{}", result.err().unwrap());
+        panic!("{}", result.err().unwrap());
     }
     let result = result.unwrap();
 
     let sttr = Stacktrace::from_gdb(&result[0]);
     if sttr.is_err() {
-        assert!(false, "{}", sttr.err().unwrap());
+        panic!("{}", sttr.err().unwrap());
     }
     let mut sttr = sttr.unwrap();
 
-    assert_eq!(
-        result[0].contains(format!("{:x}", sttr.last().unwrap().address).as_str()),
-        true
-    );
-    assert_eq!(result[0].contains(&sttr.last().unwrap().debug.file), true);
+    assert!(result[0].contains(format!("{:x}", sttr.last().unwrap().address).as_str()));
+    assert!(result[0].contains(&sttr.last().unwrap().debug.file));
 
     let prmap = MappedFiles::from_gdb(&result[1]).unwrap();
     sttr.compute_module_offsets(&prmap);
 
     assert_eq!(sttr[sttr.len() - 1].offset, 0x72b);
-    assert_eq!(result[1].contains(&sttr[sttr.len() - 1].module), true);
+    assert!(result[1].contains(&sttr[sttr.len() - 1].module));
 
     let raw_stacktrace = &[
         "#0  __strncpy_avx2 () at ../sysdeps/x86_64/multiarch/strcpy-avx2.S:363:4",
@@ -301,7 +285,7 @@ fn test_stacktrace_structs() {
 
     let sttr = Stacktrace::from_gdb(&raw_stacktrace.join("\n"));
     if sttr.is_err() {
-        assert!(false, "{}", sttr.err().unwrap());
+        panic!("{}", sttr.err().unwrap());
     }
 
     let stacktrace = sttr.unwrap();
@@ -349,7 +333,7 @@ fn test_stacktrace_structs() {
 }
 
 #[test]
-#[ignore]
+#[ignore] // Only for Ubuntu latest
 fn test_core() {
     let bin = abs_path("tests/bins/test_canary");
     let core = abs_path("tests/bins/core.test_canary");
@@ -360,10 +344,10 @@ fn test_core() {
     .bt()
     .launch();
     if result.is_err() {
-        assert!(false, "{}", result.err().unwrap());
+        panic!("{}", result.err().unwrap());
     }
     let result = result.unwrap();
-    assert_eq!(result[0].contains("__GI_abort"), true);
+    assert!(result[0].contains("__GI_abort"));
 }
 
 #[test] // To run this test: echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope
@@ -382,14 +366,14 @@ fn test_remote_unwind() {
         .bt()
         .launch();
     if result.is_err() {
-        assert!(false, "{}", result.err().unwrap());
+        panic!("{}", result.err().unwrap());
     }
 
     let result = result.unwrap();
-    assert_eq!(result[0].contains("third"), true);
-    assert_eq!(result[0].contains("second"), true);
-    assert_eq!(result[0].contains("first"), true);
-    assert_eq!(result[0].contains("main"), true);
+    assert!(result[0].contains("third"));
+    assert!(result[0].contains("second"));
+    assert!(result[0].contains("first"));
+    assert!(result[0].contains("main"));
 
     child.kill().unwrap();
 }
