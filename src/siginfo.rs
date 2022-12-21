@@ -21,8 +21,7 @@ impl Siginfo {
     /// * 'info' - gdb output string with siginfo
     pub fn from_gdb<T: AsRef<str>>(info: T) -> error::Result<Siginfo> {
         let re =
-            Regex::new(r"si_signo = 0x([0-9a-f]+)(?:.|\n)*si_errno = 0x([0-9a-f]+)(?:.|\n)*si_code = 0x([0-9a-f]+)(?:.|\n)*si_addr = 0x([0-9a-f]+)").unwrap();
-
+            Regex::new(r"si_signo(?: =|:) 0x([0-9a-f]+)(?:.|\n)*si_errno(?: =|:) 0x([0-9a-f]+)(?:.|\n)*si_code(?: =|:) 0x([0-9a-f]+)(?:.|\n)*si_addr(?: =|:) 0x([0-9a-f]+)").unwrap();
         if let Some(caps) = re.captures(info.as_ref()) {
             Ok(Siginfo {
                 si_signo: u32::from_str_radix(caps.get(1).unwrap().as_str(), 16)?,
