@@ -1,0 +1,23 @@
+[package]
+name = "gdb-command-fuzz-afl"
+version = "0.1.0"
+authors = ["Andrey Fedotov fedotoff@ispras.ru"]
+publish = false
+edition = "2021"
+
+[dependencies.gdb-command]
+path = ".."
+
+[dependencies]
+afl = "*"
+
+# Prevent this from interfering with workspaces
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "from_gdb_afl"
+path = "fuzz_targets/from_gdb.rs"
+
+[profile.release]
+debug = true
