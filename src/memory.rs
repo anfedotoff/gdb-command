@@ -1,7 +1,7 @@
 use crate::error;
 
 /// `MemoryObject` represents raw data in memory.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct MemoryObject {
     /// Memory start address
     pub address: u64,
