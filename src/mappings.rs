@@ -89,8 +89,7 @@ impl MappedFilesExt for MappedFiles {
                 .collect::<Vec<String>>();
             if filevec.len() < 4 {
                 return Err(error::Error::MappedFilesParse(format!(
-                    "Expected at least 4 columns in {}",
-                    x
+                    "Expected at least 4 columns in {x}"
                 )));
             }
 
@@ -119,7 +118,7 @@ impl MappedFilesExt for MappedFiles {
 
     fn find(&self, addr: u64) -> Option<File> {
         self.iter()
-            .find(|&x| (x.start <= addr as u64) && (x.end > addr as u64))
+            .find(|&x| (x.start <= addr) && (x.end > addr))
             .cloned()
     }
 }

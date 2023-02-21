@@ -59,17 +59,17 @@ impl From<std::num::ParseIntError> for Error {
 impl fmt::Display for Error {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Error::IO(ref err) => write!(fmt, "{}", err),
-            Error::IntParse(ref err) => write!(fmt, "{}", err),
-            Error::ParseOutput(ref msg) => write!(fmt, "Gdb parsing output error: {}", msg),
-            Error::NoFile(ref msg) => write!(fmt, "File not found: {}", msg),
-            Error::StacktraceParse(ref msg) => write!(fmt, "Error parsing stack trace: {}", msg),
-            Error::SiginfoParse(ref msg) => write!(fmt, "Error parsing siginfo: {}", msg),
-            Error::MappedFilesParse(ref msg) => write!(fmt, "Error parsing mapped files: {}", msg),
+            Error::IO(ref err) => write!(fmt, "{err}"),
+            Error::IntParse(ref err) => write!(fmt, "{err}"),
+            Error::ParseOutput(ref msg) => write!(fmt, "Gdb parsing output error: {msg}"),
+            Error::NoFile(ref msg) => write!(fmt, "File not found: {msg}"),
+            Error::StacktraceParse(ref msg) => write!(fmt, "Error parsing stack trace: {msg}"),
+            Error::SiginfoParse(ref msg) => write!(fmt, "Error parsing siginfo: {msg}"),
+            Error::MappedFilesParse(ref msg) => write!(fmt, "Error parsing mapped files: {msg}"),
             Error::MemoryObjectParse(ref msg) => {
-                write!(fmt, "Error parsing memory object: {}", msg)
+                write!(fmt, "Error parsing memory object: {msg}")
             }
-            Error::Gdb(ref msg) => write!(fmt, "Failed to launch GDB: {}", msg),
+            Error::Gdb(ref msg) => write!(fmt, "Failed to launch GDB: {msg}"),
         }
     }
 }

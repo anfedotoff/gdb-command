@@ -1,7 +1,7 @@
 use crate::error;
 
 /// `MemoryObject` represents raw data in memory.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct MemoryObject {
     /// Memory start address
     pub address: u64,
@@ -34,14 +34,12 @@ impl MemoryObject {
                     }
                 } else {
                     return Err(error::Error::MemoryObjectParse(format!(
-                        "Coudn't parse memory string: {}",
-                        first
+                        "Coudn't parse memory string: {first}"
                     )));
                 }
             } else {
                 return Err(error::Error::MemoryObjectParse(format!(
-                    "Coudn't parse memory string: {}",
-                    first
+                    "Coudn't parse memory string: {first}"
                 )));
             }
 
@@ -53,8 +51,7 @@ impl MemoryObject {
                     }
                 } else {
                     return Err(error::Error::MemoryObjectParse(format!(
-                        "No memory values: {}",
-                        line
+                        "No memory values: {line}"
                     )));
                 }
             }
