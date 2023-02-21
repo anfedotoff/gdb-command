@@ -58,7 +58,7 @@ fn test_local_sources_stdin() {
 
     let status = Command::new("bash")
         .arg("-c")
-        .arg(format!("gcc -g {} -o /tmp/test_local_sources", src))
+        .arg(format!("gcc -g {src} -o /tmp/test_local_sources"))
         .status()
         .expect("failed to execute gcc");
 
@@ -93,7 +93,7 @@ fn test_registers() {
 
     let status = Command::new("bash")
         .arg("-c")
-        .arg(format!("gcc -g {} -o /tmp/test_regs", src))
+        .arg(format!("gcc -g {src} -o /tmp/test_regs"))
         .status()
         .expect("failed to execute gcc");
 
@@ -132,7 +132,7 @@ fn test_siginfo() {
 
     let status = Command::new("bash")
         .arg("-c")
-        .arg(format!("gcc -g {} -o /tmp/test_siginfo", src))
+        .arg(format!("gcc -g {src} -o /tmp/test_siginfo"))
         .status()
         .expect("failed to execute gcc");
 
@@ -172,7 +172,7 @@ fn test_memory() {
 
     let status = Command::new("bash")
         .arg("-c")
-        .arg(format!("gcc -g {} -o /tmp/test_mem", src))
+        .arg(format!("gcc -g {src} -o /tmp/test_mem"))
         .status()
         .expect("failed to execute gcc");
 
@@ -283,7 +283,7 @@ fn test_stacktrace_structs() {
         "#2  0x0000000000487c2c in (anonymous namespace)::decrypt_xlsx(std::vector<unsigned char, std::allocator<unsigned char> > const&, std::__cxx11::basic_string<char16_t, std::char_traits<char16_t>, std::allocator<char16_t> > const&) ()"
     ];
 
-    let sttr = Stacktrace::from_gdb(&raw_stacktrace.join("\n"));
+    let sttr = Stacktrace::from_gdb(raw_stacktrace.join("\n"));
     if sttr.is_err() {
         panic!("{}", sttr.err().unwrap());
     }
