@@ -12,4 +12,4 @@ license = "MIT"
 exclude = ["/tests", ".gitignore", ".github"]
 
 [dependencies]
-regex = "~1.5"
+regex = "1"
