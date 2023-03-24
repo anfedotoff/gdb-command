@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/xcoldhandsx/gdb-command/actions/workflows/main.yml/badge.svg?branch=master)](https://github.com/xcoldhandsx/gdb-command/actions/workflows/main.yml)
 [![Crates.io](https://img.shields.io/crates/v/gdb-command)](https://crates.io/crates/gdb-command)
+[![Documentation](https://docs.rs/gdb-command/badge.svg)](https://docs.rs/gdb-command)
 
 `gdb-command` is a library providing API for manipulating gdb in batch mode. It supports:
 
