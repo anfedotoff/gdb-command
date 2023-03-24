@@ -1,3 +1,4 @@
+//! The `Stacktrace` struct represents gathered stacktrace.
 use regex::Regex;
 use std::hash::{Hash, Hasher};
 

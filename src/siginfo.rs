@@ -1,8 +1,9 @@
+//! The `Siginfo` is the struct for Linux signals.
 use regex::Regex;
 
 use crate::error;
 
-/// Definition from https://github.com/torvalds/linux/blob/master/include/uapi/asm-generic/siginfo.h (not all fields are defined).
+/// Definition from [siginfo.h](https://github.com/torvalds/linux/blob/master/include/uapi/asm-generic/siginfo.h) (not all fields are defined).
 #[derive(Copy, Clone, Default)]
 pub struct Siginfo {
     /// Signal number.

@@ -1,3 +1,4 @@
+//! The `MemoryObject` represents raw data in memory.
 use crate::error;
 
 /// `MemoryObject` represents raw data in memory.

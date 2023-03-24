@@ -1,3 +1,4 @@
+//! The `Registers` is a map from register name to it's value.
 use std::collections::HashMap;
 
 use crate::error;

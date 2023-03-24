@@ -1,6 +1,4 @@
-//! A custom GdbCommand error
-//!
-
+//! A custom GdbCommand error.
 use core::fmt;
 use core::result;
 use std::{error, io};

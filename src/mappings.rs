@@ -1,3 +1,4 @@
+//! The `MappedFiles` struct holds information about all mapped files in process.
 use std::fmt;
 
 use crate::error;
