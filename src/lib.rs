@@ -124,15 +124,7 @@ impl<'a> GdbCommand<'a> {
     /// Run gdb with provided commands and return raw stdout.
     pub fn raw(&self) -> error::Result<Vec<u8>> {
         let mut gdb = Command::new("gdb");
-        let mut gdb_args: Vec<String> = vec![
-            "--batch".to_string(),
-            "-ex".to_string(),
-            "set backtrace limit 2000".to_string(),
-            "-ex".to_string(),
-            "set disassembly-flavor intel".to_string(),
-            "-ex".to_string(),
-            "set filename-display absolute".to_string(),
-        ];
+        let mut gdb_args = Vec::new();
 
         // Add parameters according to execution
         match &self.exec_type {
@@ -142,14 +134,11 @@ impl<'a> GdbCommand<'a> {
                     return Err(error::Error::NoFile(args[0].to_string()));
                 }
 
-                gdb_args.append(&mut self.args.clone());
-                gdb_args.push("--args".to_string());
-                args.iter().for_each(|a| gdb_args.push(a.to_string()));
+                gdb_args.push(args[0].to_string())
             }
             ExecType::Remote(pid) => {
                 gdb_args.push("-p".to_string());
                 gdb_args.push(pid.to_string());
-                gdb_args.append(&mut self.args.clone());
             }
             ExecType::Core { target, core } => {
                 // Check if binary exists
@@ -161,11 +150,21 @@ impl<'a> GdbCommand<'a> {
                 if !Path::new(core).exists() {
                     return Err(error::Error::NoFile(core.to_string()));
                 }
-                gdb_args.append(&mut self.args.clone());
                 gdb_args.push(target.to_string());
                 gdb_args.push(core.to_string());
             }
         }
+
+        gdb_args.append(&mut vec![
+            "--batch".to_string(),
+            "-ex".to_string(),
+            "set backtrace limit 2000".to_string(),
+            "-ex".to_string(),
+            "set disassembly-flavor intel".to_string(),
+            "-ex".to_string(),
+            "set filename-display absolute".to_string(),
+        ]);
+        gdb_args.append(&mut self.args.clone());
 
         // Run gdb and get output
         let output = gdb.args(&gdb_args).output();
@@ -183,11 +182,16 @@ impl<'a> GdbCommand<'a> {
     /// * `file` - path to stdin file
     pub fn r(&mut self) -> &'a mut GdbCommand {
         self.args.push("-ex".to_string());
-        let run_command = if let Some(stdin) = self.stdin {
-            format!("r < {}", stdin.display())
-        } else {
-            "r".to_string()
-        };
+        let mut run_command = "r".to_string();
+        if let ExecType::Local(args) = self.exec_type {
+            if args.len() > 1 {
+                run_command.push(' ');
+                run_command += &args[1..].join(" ");
+            }
+        }
+        if let Some(stdin) = self.stdin {
+            run_command += &format!(" < {}", stdin.display());
+        }
         self.args.push(run_command);
         self
     }

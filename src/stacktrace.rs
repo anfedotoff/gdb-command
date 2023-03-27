@@ -191,18 +191,13 @@ pub trait StacktraceExt {
 
 impl StacktraceExt for Stacktrace {
     fn from_gdb<T: AsRef<str>>(trace: T) -> error::Result<Stacktrace> {
-        let mut stacktrace = Stacktrace::new();
-        let mut entries = trace
+        trace
             .as_ref()
             .lines()
             .map(|s| s.trim().to_string())
-            .collect::<Vec<String>>();
-        entries.retain(|trace| !trace.is_empty());
-
-        for x in entries.iter() {
-            stacktrace.push(StacktraceEntry::new(&x.clone())?);
-        }
-        Ok(stacktrace)
+            .filter(|trace| !trace.is_empty())
+            .map(StacktraceEntry::new)
+            .collect()
     }
 
     fn compute_module_offsets(&mut self, mappings: &MappedFiles) {
