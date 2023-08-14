@@ -81,6 +81,8 @@ pub struct GdbCommand<'a> {
     stdin: Option<&'a PathBuf>,
     /// Commands to execute for result.
     commands_cnt: usize,
+    /// Target program timeout (disabled if equal to 0).
+    timeout: u64,
 }
 
 impl<'a> GdbCommand<'a> {
@@ -94,6 +96,7 @@ impl<'a> GdbCommand<'a> {
             args: Vec::new(),
             stdin: None,
             commands_cnt: 0,
+            timeout: 0,
         }
     }
 
@@ -125,11 +128,7 @@ impl<'a> GdbCommand<'a> {
     }
 
     /// Run gdb with provided commands and return raw stdout.
-    ///
-    /// # Arguments
-    ///
-    /// * `timeout` - target program timeout (disabled if equal to 0)
-    pub fn raw(&self, timeout: u64) -> error::Result<Vec<u8>> {
+    pub fn raw(&self) -> error::Result<Vec<u8>> {
         let mut gdb = Command::new("gdb");
         let mut gdb_args = Vec::new();
 
@@ -178,11 +177,11 @@ impl<'a> GdbCommand<'a> {
         let output =
         // If timeout is specified, spawn and check timeout
         // Else get output
-        if timeout != 0 {
+        if self.timeout != 0 {
             let mut child = gdb
                 .spawn()?;
             if child
-                .wait_timeout(Duration::from_secs(timeout))
+                .wait_timeout(Duration::from_secs(self.timeout))
                 .unwrap()
                 .is_none()
             {
@@ -274,6 +273,12 @@ impl<'a> GdbCommand<'a> {
         self
     }
 
+    /// Add timeout
+    pub fn timeout(&mut self, timeout: u64) -> &'a mut GdbCommand {
+        self.timeout = timeout;
+        self
+    }
+
     /// Print lines from source file
     ///
     /// # Arguments
@@ -310,7 +315,7 @@ impl<'a> GdbCommand<'a> {
     /// The return value is a vector of strings for each command executed.
     pub fn launch(&self) -> error::Result<Vec<String>> {
         // Get raw output from Gdb.
-        let stdout = self.raw(0)?;
+        let stdout = self.raw()?;
 
         // Split stdout into lines.
         let output = String::from_utf8_lossy(&stdout);
