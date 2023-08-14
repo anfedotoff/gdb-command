@@ -48,6 +48,9 @@ use regex::Regex;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
+use std::time::Duration;
+
+use wait_timeout::ChildExt;
 
 pub mod error;
 pub mod mappings;
@@ -122,7 +125,11 @@ impl<'a> GdbCommand<'a> {
     }
 
     /// Run gdb with provided commands and return raw stdout.
-    pub fn raw(&self) -> error::Result<Vec<u8>> {
+    ///
+    /// # Arguments
+    ///
+    /// * `timeout` - target program timeout (disabled if equal to 0)
+    pub fn raw(&self, timeout: u64) -> error::Result<Vec<u8>> {
         let mut gdb = Command::new("gdb");
         let mut gdb_args = Vec::new();
 
@@ -165,9 +172,26 @@ impl<'a> GdbCommand<'a> {
             "set filename-display absolute".to_string(),
         ]);
         gdb_args.append(&mut self.args.clone());
+        gdb.args(&gdb_args);
 
         // Run gdb and get output
-        let output = gdb.args(&gdb_args).output();
+        let output =
+        // If timeout is specified, spawn and check timeout
+        // Else get output
+        if timeout != 0 {
+            let mut child = gdb
+                .spawn()?;
+            if child
+                .wait_timeout(Duration::from_secs(timeout))
+                .unwrap()
+                .is_none()
+            {
+                child.kill()?;
+            }
+            child.wait_with_output()
+        } else {
+            gdb.output()
+        };
         if let Err(e) = output {
             return Err(error::Error::Gdb(e.to_string()));
         }
@@ -286,7 +310,7 @@ impl<'a> GdbCommand<'a> {
     /// The return value is a vector of strings for each command executed.
     pub fn launch(&self) -> error::Result<Vec<String>> {
         // Get raw output from Gdb.
-        let stdout = self.raw()?;
+        let stdout = self.raw(0)?;
 
         // Split stdout into lines.
         let output = String::from_utf8_lossy(&stdout);
