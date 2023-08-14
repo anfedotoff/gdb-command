@@ -185,7 +185,7 @@ impl<'a> GdbCommand<'a> {
                 .unwrap()
                 .is_none()
             {
-                child.kill()?;
+                let _ = child.kill();
                 return Err(error::Error::Gdb(format!(
                     "Timeout error: {} sec exceeded",
                     self.timeout,
