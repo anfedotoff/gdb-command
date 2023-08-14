@@ -81,7 +81,7 @@ pub struct GdbCommand<'a> {
     stdin: Option<&'a PathBuf>,
     /// Commands to execute for result.
     commands_cnt: usize,
-    /// Target program timeout (disabled if equal to 0).
+    /// Target program timeout [sec] (disabled if equal to 0).
     timeout: u64,
 }
 
@@ -277,7 +277,7 @@ impl<'a> GdbCommand<'a> {
         self
     }
 
-    /// Add timeout
+    /// Add timeout [sec]
     pub fn timeout(&mut self, timeout: u64) -> &'a mut GdbCommand {
         self.timeout = timeout;
         self
