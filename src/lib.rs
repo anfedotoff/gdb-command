@@ -186,6 +186,10 @@ impl<'a> GdbCommand<'a> {
                 .is_none()
             {
                 child.kill()?;
+                return Err(error::Error::Gdb(format!(
+                    "Timeout error: {} sec exceeded",
+                    self.timeout,
+                )));
             }
             child.wait_with_output()
         } else {
