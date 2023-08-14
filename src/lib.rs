@@ -48,6 +48,9 @@ use regex::Regex;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
+use std::time::Duration;
+
+use wait_timeout::ChildExt;
 
 pub mod error;
 pub mod mappings;
@@ -78,6 +81,8 @@ pub struct GdbCommand<'a> {
     stdin: Option<&'a PathBuf>,
     /// Commands to execute for result.
     commands_cnt: usize,
+    /// Target program timeout [sec] (disabled if equal to 0).
+    timeout: u64,
 }
 
 impl<'a> GdbCommand<'a> {
@@ -91,6 +96,7 @@ impl<'a> GdbCommand<'a> {
             args: Vec::new(),
             stdin: None,
             commands_cnt: 0,
+            timeout: 0,
         }
     }
 
@@ -165,9 +171,30 @@ impl<'a> GdbCommand<'a> {
             "set filename-display absolute".to_string(),
         ]);
         gdb_args.append(&mut self.args.clone());
+        gdb.args(&gdb_args);
 
         // Run gdb and get output
-        let output = gdb.args(&gdb_args).output();
+        let output =
+        // If timeout is specified, spawn and check timeout
+        // Else get output
+        if self.timeout != 0 {
+            let mut child = gdb
+                .spawn()?;
+            if child
+                .wait_timeout(Duration::from_secs(self.timeout))
+                .unwrap()
+                .is_none()
+            {
+                let _ = child.kill();
+                return Err(error::Error::Gdb(format!(
+                    "Timeout error: {} sec exceeded",
+                    self.timeout,
+                )));
+            }
+            child.wait_with_output()
+        } else {
+            gdb.output()
+        };
         if let Err(e) = output {
             return Err(error::Error::Gdb(e.to_string()));
         }
@@ -247,6 +274,12 @@ impl<'a> GdbCommand<'a> {
     pub fn bmain(&mut self) -> &'a mut GdbCommand {
         self.args.push("-ex".to_string());
         self.args.push("b main".to_string());
+        self
+    }
+
+    /// Add timeout [sec]
+    pub fn timeout(&mut self, timeout: u64) -> &'a mut GdbCommand {
+        self.timeout = timeout;
         self
     }
 
