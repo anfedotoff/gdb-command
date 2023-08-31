@@ -48,6 +48,7 @@ use regex::Regex;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
+use std::process::Stdio;
 use std::time::Duration;
 
 use wait_timeout::ChildExt;
@@ -179,6 +180,8 @@ impl<'a> GdbCommand<'a> {
         // Else get output
         if self.timeout != 0 {
             let mut child = gdb
+                .stderr(Stdio::piped())
+                .stdout(Stdio::piped())
                 .spawn()?;
             if child
                 .wait_timeout(Duration::from_secs(self.timeout))
