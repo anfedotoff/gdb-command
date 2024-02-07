@@ -1,6 +1,7 @@
 //! The `Stacktrace` struct represents gathered stacktrace.
 use regex::Regex;
 use std::hash::{Hash, Hasher};
+use std::path::Path;
 
 use crate::error;
 use crate::mappings::{MappedFiles, MappedFilesExt};
@@ -163,6 +164,17 @@ impl StacktraceEntry {
             entry.as_ref()
         )))
     }
+
+    /// Strip prefix from source file path
+    ///
+    /// # Arguments
+    ///
+    /// * 'prefix' - path prefix
+    pub fn strip_prefix<T: AsRef<str>>(&mut self, prefix: T) {
+        if let Ok(stripped) = Path::new(&self.debug.file).strip_prefix(prefix.as_ref()) {
+            self.debug.file = stripped.display().to_string();
+        }
+    }
 }
 
 /// Represents the information about stack trace
@@ -187,6 +199,13 @@ pub trait StacktraceExt {
     ///
     /// * 'mappings' - information about mapped files
     fn compute_module_offsets(&mut self, mappings: &MappedFiles);
+
+    /// Strip prefix from source file path for all StacktraceEntry's
+    ///
+    /// # Arguments
+    ///
+    /// * 'prefix' - path prefix
+    fn strip_prefix<T: AsRef<str>>(&mut self, prefix: T);
 }
 
 impl StacktraceExt for Stacktrace {
@@ -209,5 +228,15 @@ impl StacktraceExt for Stacktrace {
                 }
             }
         });
+    }
+
+    fn strip_prefix<T: AsRef<str>>(&mut self, prefix: T) {
+        *self = std::mem::take(self)
+            .into_iter()
+            .map(|mut e| {
+                e.strip_prefix(prefix.as_ref());
+                e
+            })
+            .collect();
     }
 }

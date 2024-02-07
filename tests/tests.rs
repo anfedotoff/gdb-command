@@ -280,7 +280,8 @@ fn test_stacktrace_structs() {
         "#1  0x0000000000216d07 in ?? ()",
         "#0  __strncpy_avx2 () from /lib/libc.so.6",
         "#0  0xf7fcf569 in __kernel_vsyscall ()",
-        "#2  0x0000000000487c2c in (anonymous namespace)::decrypt_xlsx(std::vector<unsigned char, std::allocator<unsigned char> > const&, std::__cxx11::basic_string<char16_t, std::char_traits<char16_t>, std::allocator<char16_t> > const&) ()"
+        "#2  0x0000000000487c2c in (anonymous namespace)::decrypt_xlsx(std::vector<unsigned char, std::allocator<unsigned char> > const&, std::__cxx11::basic_string<char16_t, std::char_traits<char16_t>, std::allocator<char16_t> > const&) ()",
+        "#8  0x00005555555551d4 in main (argc=1, argv=0x7fffffffdc58) at /home/user/gdb-command/tests/src/test.c:22"
     ];
 
     let sttr = Stacktrace::from_gdb(raw_stacktrace.join("\n"));
@@ -288,7 +289,9 @@ fn test_stacktrace_structs() {
         panic!("{}", sttr.err().unwrap());
     }
 
-    let stacktrace = sttr.unwrap();
+    let mut stacktrace = sttr.unwrap();
+
+    stacktrace.strip_prefix("/home/user/gdb-command");
 
     assert_eq!(stacktrace[0].function, "__strncpy_avx2 ()".to_string());
     assert_eq!(
@@ -330,6 +333,14 @@ fn test_stacktrace_structs() {
 
     assert_eq!(stacktrace[8].address, 0x0000000000487c2c);
     assert_eq!(stacktrace[8].function, "(anonymous namespace)::decrypt_xlsx(std::vector<unsigned char, std::allocator<unsigned char> > const&, std::__cxx11::basic_string<char16_t, std::char_traits<char16_t>, std::allocator<char16_t> > const&) ()".to_string());
+
+    assert_eq!(stacktrace[9].address, 0x00005555555551d4);
+    assert_eq!(
+        stacktrace[9].function,
+        "main (argc=1, argv=0x7fffffffdc58)".to_string()
+    );
+    assert_eq!(stacktrace[9].debug.file, "tests/src/test.c".to_string());
+    assert_eq!(stacktrace[9].debug.line, 22);
 }
 
 #[test]
