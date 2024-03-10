@@ -281,7 +281,8 @@ fn test_stacktrace_structs() {
         "#0  __strncpy_avx2 () from /lib/libc.so.6",
         "#0  0xf7fcf569 in __kernel_vsyscall ()",
         "#2  0x0000000000487c2c in (anonymous namespace)::decrypt_xlsx(std::vector<unsigned char, std::allocator<unsigned char> > const&, std::__cxx11::basic_string<char16_t, std::char_traits<char16_t>, std::allocator<char16_t> > const&) ()",
-        "#8  0x00005555555551d4 in main (argc=1, argv=0x7fffffffdc58) at /home/user/gdb-command/tests/src/test.c:22"
+        "#8  0x00005555555551d4 in main (argc=1, argv=0x7fffffffdc58) at /home/user/gdb-command/tests/src/test.c:22",
+        "#0  __strncpy_avx2 () from /home/user/gdb-command/lib/libc.so.6",
     ];
 
     let sttr = Stacktrace::from_gdb(raw_stacktrace.join("\n"));
@@ -341,6 +342,9 @@ fn test_stacktrace_structs() {
     );
     assert_eq!(stacktrace[9].debug.file, "tests/src/test.c".to_string());
     assert_eq!(stacktrace[9].debug.line, 22);
+
+    assert_eq!(stacktrace[10].module, "lib/libc.so.6".to_string());
+    assert_eq!(stacktrace[10].function, "__strncpy_avx2 ()".to_string());
 }
 
 #[test]

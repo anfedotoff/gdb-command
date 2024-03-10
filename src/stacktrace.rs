@@ -165,7 +165,7 @@ impl StacktraceEntry {
         )))
     }
 
-    /// Strip prefix from source file path
+    /// Strip prefix from source file path and module
     ///
     /// # Arguments
     ///
@@ -173,6 +173,9 @@ impl StacktraceEntry {
     pub fn strip_prefix<T: AsRef<str>>(&mut self, prefix: T) {
         if let Ok(stripped) = Path::new(&self.debug.file).strip_prefix(prefix.as_ref()) {
             self.debug.file = stripped.display().to_string();
+        }
+        if let Ok(stripped) = Path::new(&self.module).strip_prefix(prefix.as_ref()) {
+            self.module = stripped.display().to_string();
         }
     }
 }
