@@ -51,7 +51,7 @@ fn main () -> error::Result<()> {
 
 ```toml
 [dependencies]
-gdb-command = "0.7.7"
+gdb-command = "0.7.8"
 ```
 
 ## License
