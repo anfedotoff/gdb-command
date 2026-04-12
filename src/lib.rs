@@ -106,7 +106,7 @@ impl<'a> GdbCommand<'a> {
     /// # Arguments
     ///
     /// * `file` - path to stdin file
-    pub fn stdin<T: Into<Option<&'a PathBuf>>>(&mut self, file: T) -> &'a mut GdbCommand {
+    pub fn stdin<T: Into<Option<&'a PathBuf>>>(&mut self, file: T) -> &'a mut GdbCommand<'_> {
         self.stdin = file.into();
         self
     }
@@ -115,7 +115,7 @@ impl<'a> GdbCommand<'a> {
     /// # Arguments
     ///
     /// * `cmd` - gdb command parameter (-ex).
-    pub fn ex<T: Into<String>>(&mut self, cmd: T) -> &'a mut GdbCommand {
+    pub fn ex<T: Into<String>>(&mut self, cmd: T) -> &'a mut GdbCommand<'_> {
         self.args.push("-ex".to_string());
         self.args
             .push(format!("p \"gdb-command-start-{}\"", self.commands_cnt));
@@ -210,7 +210,7 @@ impl<'a> GdbCommand<'a> {
     /// # Arguments
     ///
     /// * `file` - path to stdin file
-    pub fn r(&mut self) -> &'a mut GdbCommand {
+    pub fn r(&mut self) -> &'a mut GdbCommand<'_> {
         self.args.push("-ex".to_string());
         let mut run_command = "r".to_string();
         if let ExecType::Local(args) = self.exec_type {
@@ -227,61 +227,61 @@ impl<'a> GdbCommand<'a> {
     }
 
     /// Add command to continue execution
-    pub fn c(&mut self) -> &'a mut GdbCommand {
+    pub fn c(&mut self) -> &'a mut GdbCommand<'_> {
         self.args.push("-ex".to_string());
         self.args.push("c".to_string());
         self
     }
 
     /// Add command to get backtrace (-ex bt)
-    pub fn bt(&mut self) -> &'a mut GdbCommand {
+    pub fn bt(&mut self) -> &'a mut GdbCommand<'_> {
         self.ex("bt")
     }
 
     /// Add command to get disassembly (-ex 'x/16i $pc')
-    pub fn disassembly(&mut self) -> &'a mut GdbCommand {
+    pub fn disassembly(&mut self) -> &'a mut GdbCommand<'_> {
         self.ex("x/16i $pc")
     }
 
     /// Add command to get registers (-ex 'i r')
-    pub fn regs(&mut self) -> &'a mut GdbCommand {
+    pub fn regs(&mut self) -> &'a mut GdbCommand<'_> {
         self.ex("i r")
     }
 
     /// Add command to get mappings (-ex 'info proc mappings')
-    pub fn mappings(&mut self) -> &'a mut GdbCommand {
+    pub fn mappings(&mut self) -> &'a mut GdbCommand<'_> {
         self.ex("info proc mappings")
     }
 
     /// Add command to get cmd line.
-    pub fn cmdline(&mut self) -> &'a mut GdbCommand {
+    pub fn cmdline(&mut self) -> &'a mut GdbCommand<'_> {
         self.ex("info proc cmdline")
     }
 
     /// Add command to get environment variables
-    pub fn env(&mut self) -> &'a mut GdbCommand {
+    pub fn env(&mut self) -> &'a mut GdbCommand<'_> {
         self.ex("show environment")
     }
 
     /// Add command to get process status
-    pub fn status(&mut self) -> &'a mut GdbCommand {
+    pub fn status(&mut self) -> &'a mut GdbCommand<'_> {
         self.ex("info proc status")
     }
 
     /// Add command to get info
-    pub fn sources(&mut self) -> &'a mut GdbCommand {
+    pub fn sources(&mut self) -> &'a mut GdbCommand<'_> {
         self.ex("info sources")
     }
 
     /// Break at main
-    pub fn bmain(&mut self) -> &'a mut GdbCommand {
+    pub fn bmain(&mut self) -> &'a mut GdbCommand<'_> {
         self.args.push("-ex".to_string());
         self.args.push("b main".to_string());
         self
     }
 
     /// Add timeout [sec]
-    pub fn timeout(&mut self, timeout: u64) -> &'a mut GdbCommand {
+    pub fn timeout(&mut self, timeout: u64) -> &'a mut GdbCommand<'_> {
         self.timeout = timeout;
         self
     }
@@ -291,8 +291,8 @@ impl<'a> GdbCommand<'a> {
     /// # Arguments
     ///
     /// * `location` - lines centered around the line specified by location.
-    /// If None then location is current line.
-    pub fn list<T: Into<Option<&'a str>>>(&mut self, location: T) -> &'a mut GdbCommand {
+    ///   If None then location is current line.
+    pub fn list<T: Into<Option<&'a str>>>(&mut self, location: T) -> &'a mut GdbCommand<'_> {
         if let Some(loc) = location.into() {
             self.ex(format!("list {loc}"))
         } else {
@@ -307,12 +307,12 @@ impl<'a> GdbCommand<'a> {
     /// * `expr` - expression that represents the start memory address.
     ///
     /// * `size` - size of memory in bytes to get.
-    pub fn mem<T: AsRef<str>>(&mut self, expr: T, size: usize) -> &'a mut GdbCommand {
+    pub fn mem<T: AsRef<str>>(&mut self, expr: T, size: usize) -> &'a mut GdbCommand<'_> {
         self.ex(format!("x/{}bx {}", size, expr.as_ref()))
     }
 
     /// Add command to get siginfo
-    pub fn siginfo(&mut self) -> &'a mut GdbCommand {
+    pub fn siginfo(&mut self) -> &'a mut GdbCommand<'_> {
         self.ex("p/x $_siginfo")
     }
 

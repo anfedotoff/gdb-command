@@ -23,7 +23,16 @@ fn abs_path(rpath: &str) -> String {
 #[test]
 fn test_local_canary() {
     let mut args = Vec::new();
-    let bin = abs_path("tests/bins/test_canary");
+
+    let src = abs_path("tests/src/test_canary.c");
+    let status = Command::new("bash")
+        .arg("-c")
+        .arg(format!("gcc -g -O0 {src} -o /tmp/test_canary"))
+        .status()
+        .expect("failed to execute gcc");
+    assert!(status.success());
+    let bin = abs_path("/tmp/test_canary");
+
     let a = "A".repeat(200);
     args.push(bin.as_str());
     args.push(a.as_str());
@@ -38,7 +47,16 @@ fn test_local_canary() {
 #[test]
 fn test_local_safe_func() {
     let mut args = Vec::new();
-    let bin = abs_path("tests/bins/test_safeFunc");
+
+    let src = abs_path("tests/src/test_safeFunc.c");
+    let status = Command::new("bash")
+        .arg("-c")
+        .arg(format!("gcc -g -O0 {src} -o /tmp/test_safeFunc"))
+        .status()
+        .expect("failed to execute gcc");
+    assert!(status.success());
+    let bin = abs_path("/tmp/test_safeFunc");
+
     let a = "A".repeat(200);
     args.push(bin.as_str());
     args.push(a.as_str());
@@ -58,7 +76,7 @@ fn test_local_sources_stdin() {
 
     let status = Command::new("bash")
         .arg("-c")
-        .arg(format!("gcc -g {src} -o /tmp/test_local_sources"))
+        .arg(format!("gcc -g -O0 {src} -o /tmp/test_local_sources"))
         .status()
         .expect("failed to execute gcc");
 
@@ -93,7 +111,7 @@ fn test_registers() {
 
     let status = Command::new("bash")
         .arg("-c")
-        .arg(format!("gcc -g {src} -o /tmp/test_regs"))
+        .arg(format!("gcc -g -O0 {src} -o /tmp/test_regs"))
         .status()
         .expect("failed to execute gcc");
 
@@ -132,7 +150,7 @@ fn test_siginfo() {
 
     let status = Command::new("bash")
         .arg("-c")
-        .arg(format!("gcc -g {src} -o /tmp/test_siginfo"))
+        .arg(format!("gcc -g -O0 {src} -o /tmp/test_siginfo"))
         .status()
         .expect("failed to execute gcc");
 
@@ -172,7 +190,7 @@ fn test_memory() {
 
     let status = Command::new("bash")
         .arg("-c")
-        .arg(format!("gcc -g {src} -o /tmp/test_mem"))
+        .arg(format!("gcc -g -O0 {src} -o /tmp/test_mem"))
         .status()
         .expect("failed to execute gcc");
 
@@ -209,7 +227,15 @@ fn test_memory() {
 
 #[test]
 fn test_struct_mapped_files() {
-    let bin = abs_path("tests/bins/test_abort");
+    let src = abs_path("tests/src/test_abort.c");
+    let status = Command::new("bash")
+        .arg("-c")
+        .arg(format!("gcc -g -O0 {src} -o /tmp/test_abort"))
+        .status()
+        .expect("failed to execute gcc");
+    assert!(status.success());
+    let bin = abs_path("/tmp/test_abort");
+
     let result = GdbCommand::new(&ExecType::Local(&[&bin, "A"]))
         .r()
         .mappings()
@@ -245,7 +271,15 @@ fn test_struct_mapped_files() {
 
 #[test]
 fn test_stacktrace_structs() {
-    let bin = abs_path("tests/bins/test_abort");
+    let src = abs_path("tests/src/test_abort.c");
+    let status = Command::new("bash")
+        .arg("-c")
+        .arg(format!("gcc -g -O0 {src} -o /tmp/test_abort"))
+        .status()
+        .expect("failed to execute gcc");
+    assert!(status.success());
+    let bin = abs_path("/tmp/test_abort");
+
     let result = GdbCommand::new(&ExecType::Local(&[&bin, "A"]))
         .r()
         .bt()
@@ -350,7 +384,15 @@ fn test_stacktrace_structs() {
 #[test]
 #[ignore] // Only for Ubuntu latest
 fn test_core() {
-    let bin = abs_path("tests/bins/test_canary");
+    let src = abs_path("tests/src/test_canary.c");
+    let status = Command::new("bash")
+        .arg("-c")
+        .arg(format!("gcc -g -O0 {src} -o /tmp/test_canary"))
+        .status()
+        .expect("failed to execute gcc");
+    assert!(status.success());
+    let bin = abs_path("/tmp/test_canary");
+
     let core = abs_path("tests/bins/core.test_canary");
     let result = GdbCommand::new(&ExecType::Core {
         target: &bin,
@@ -376,6 +418,10 @@ fn test_remote_unwind() {
         .spawn()
         .expect("failed to execute child");
     thread::sleep(Duration::from_millis(10));
+
+    let ecode = child.wait().expect("failed to wait on child");
+
+    assert!(ecode.success());
 
     let result = GdbCommand::new(&ExecType::Remote(&child.id().to_string()))
         .bt()
